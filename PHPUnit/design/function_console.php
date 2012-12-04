@@ -12,7 +12,7 @@ $string = $type.": ".$name."()";
 	if($passed) {
 		$string.= " PASSED";
 		if($time > 0) {
-			$string.= " (".$timestr." s)";
+			$string.= " (".$time." s)";
 		}
 		$string.= PHP_EOL;
 	} else {

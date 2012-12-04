@@ -149,16 +149,16 @@ class PHPUnit {
 	private static $start_time = null;
 	private static $failed_count = 0;
 	private static $passed_count = 0;
-	private static $objects = array();
-	private static $current_object = null;
 	private static $functions = array();
 	private static $current_function = null;
+	private static $objects = array();
+	private static $current_object = null;
 	private static $css_file = "PHPUnit.css";
 	private static $standalone_functions = 0;
-	private static $method_suffix = "_test";
+	private static $function_suffix = "_test";
 	private static $class_suffix = "_test";
 	private static $object_suffix = "_test";
-	private static $function_suffix = "_test";
+	private static $method_suffix = "_test";
 	private static $display = "console";
 	private static $errors = array();
 	private static $str_array = array(
@@ -171,34 +171,97 @@ class PHPUnit {
 		"Time: "
 	);
 
+	function __construct() {}
+
 	function __destruct() {
-		foreach(get_declared_classes() as $class) {
-			if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
-				if(strpos($class,"\\") == false) {
-					$class = "\\".$class;
-				} 
-			} 
-		}
 		$functions = get_defined_functions();
 		foreach($functions['user'] as $function) {
 			if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
-				if(strpos($function,"\\") == false) {
-					$function = "\\".$function;
-				}
+				PHPUnit::add_function("\\".$function);
 			} 
+		}
+		foreach(get_declared_classes() as $class) {
+			if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
+				PHPUnit::add_object("\\".$class);
+			} 
+		}
+		foreach(get_defined_vars() as $var) {
+			if(is_object($var) && substr($var, - \strlen(PHPUnit::$object_suffix)) == PHPUnit::$object_suffix) {
+				var_dump("\\".$GLOBALS[$var]);
+				PHPUnit::add_object("\\".$var,"\\".$GLOBALS[$var]);
+			}
+		}
+		PHPUnit::test();
+	}
+
+	public function __set($name, $value) {
+		if(method_exists(__CLASS__, $name) && property_exists(__CLASS__, $name)) {
+			$refl = new \ReflectionMethod(__CLASS__, $name);
+	    if($refl->isPublic()) {
+	        return PHPUnit::$name($value);
+	    } else {
+	    	throw new \Exception("Access to undeclared static property ".__CLASS__."::".$name.'.');
+	    }
+		} else {
+			throw new \Exception("Access to undeclared static property ".__CLASS__."::".$name.'.');
 		}
 	}
 
-	static function method_suffix($method_suffix = null) {
-		if($method_suffix != null) {
-			if(gettype($method_suffix) == "string") {
-				PHPUnit::$method_suffix = $method_suffix;
-			} else {
-				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($display)." was given.");
-			}
+	public function __get($name) {
+		if(method_exists(__CLASS__, $name) && property_exists(__CLASS__, $name)) {
+			$refl = new \ReflectionMethod(__CLASS__, $name);
+	    if($refl->isPublic()) {
+	        return PHPUnit::$name();
+	    } else {
+	    	throw new \Exception("Access to undeclared static property ".__CLASS__."::".$name.'.');
+	    }
 		} else {
-			return PHPUnit::$method_suffix;
+			throw new \Exception("Access to undeclared static property ".__CLASS__."::".$name.'.');
 		}
+	}
+
+	static function function_suffix($suffix = null) {
+		if($suffix != null) {
+			if(is_string($suffix)) {
+				PHPUnit::$function_suffix = $suffix;
+			} else {
+				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($suffix)." was given.");
+			}
+		}
+		return PHPUnit::$function_suffix;
+	}	
+
+	static function class_suffix($suffix = null) {
+		if($suffix != null) {
+			if(is_string($suffix)) {
+				PHPUnit::$class_suffix = $suffix;
+			} else {
+				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($suffix)." was given.");
+			}
+		}
+		return PHPUnit::$class_suffix;
+	}
+
+	static function object_suffix($suffix = null) {
+		if($suffix != null) {
+			if(is_string($suffix)) {
+				PHPUnit::$object_suffix = $suffix;
+			} else {
+				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($suffix)." was given.");
+			}
+		}
+		return PHPUnit::$object_suffix;
+	}
+
+	static function method_suffix($suffix = null) {
+		if($suffix != null) {
+			if(is_string($suffix)) {
+				PHPUnit::$method_suffix = $suffix;
+			} else {
+				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($suffix)." was given.");
+			}
+		}
+		return PHPUnit::$method_suffix;
 	}
 	
 	static function display($display = null) {
@@ -225,13 +288,16 @@ class PHPUnit {
 		}
 	}
 	
-	function __construct($parameter = null) {
-		if($parameter != null) {
-			$this->test($parameter);
-		}
-	}
-	
 	static function test($parameter = null) {
+		foreach(PHPUnit::$objects as $object) {
+			$object->test();
+			echo $object.PHP_EOL;
+		}
+		foreach(PHPUnit::$functions as $function) {
+			$function->test();
+			echo $function.PHP_EOL;;
+		}
+		/*
 		if($parameter == null) {
 			$debug_backtrace = debug_backtrace();
 			$caller = $debug_backtrace[1];
@@ -258,6 +324,7 @@ class PHPUnit {
 				PHPUnit::test_function();
 			}
 		}
+		*/
 		PHPUnit::$current_object = null;
 		PHPUnit::$current_function = null;
 	}
@@ -279,20 +346,40 @@ class PHPUnit {
 			PHPUnit::$failed_count++;
 		}
 	}
-	private static function addFunction($name,$isfunction = true) {
-		foreach(PHPUnit::$functions as $function){
-			if($function->name() == $name) {
-				return $function;
+
+	private static function add_function($name) {
+		if(function_exists($name)) {
+			foreach(PHPUnit::$functions as $function){
+				if($function->name() == $name) {
+					return false;
+				}
 			}
+			PHPUnit::$functions[] = new PHPUNIT_TestFunction($name);
+			return true;
 		}
-		PHPUnit::$standalone_functions++;
-		$function = new PHPUnit_testFunction($name);
-		if(!$isfunction) {
-			$function->type("Assertions in file");
-		}
-		PHPUnit::$functions[] = $function;
-		return $function;
 	}
+
+	private static function add_class($name) {
+		if(class_exists($name)) {
+			foreach(PHPUnit::$objects as $object){
+				if($object->class() == $name && $object->name() == "") {
+					return false;
+				}
+			}
+			PHPUnit::$functions[] = new PHPUNIT_TestFunction($name);
+			return true;
+		}	
+	}
+
+	private static function add_object($name, $object="") {
+		if(is_object($object)) {
+			PHPUnit::$objects[] = new PHPUnit_TestObject($object);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	private static function current_add_error($error) {
 		if(PHPUnit::$current_object != null && isset($error["class"]) && $error["class"] == PHPUnit::$current_object->name()) {
 			PHPUnit::$current_object->method_error(new Error($error),true);
@@ -307,7 +394,7 @@ class PHPUnit {
 				unset($error['class']);
 				$caller = $error['function'];
 			}
-			$function = PHPUnit::addFunction($caller,$isfunction);
+			$function = PHPUnit::add_function($caller,$isfunction);
 			$function->add_error($error);
 			$function->passed(false);
 		}
@@ -439,7 +526,7 @@ class PHPUnit {
 				$caller = $error['file'];
 				$isfunction = false;
 			}
-			$function = PHPUnit::addFunction($caller,$isfunction);
+			$function = PHPUnit::add_function($caller,$isfunction);
 		}
 	}
 	

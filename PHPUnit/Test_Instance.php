@@ -4,6 +4,7 @@ if(!class_exists(__NAMESPACE__."\PHPUnit")) return;
 function include_extract($path,$array = array()) {
 	if(file_exists($path)) {
 		extract($array);
+		if(isset($name)) $name = substr($name,0,1) == '\\' ? substr($name,1) : $name;
 		return include($path);
 	} else {
 		if(strpos($path, "/") != false) {
@@ -31,7 +32,7 @@ abstract class PHPUnit_testInstance {
 			$array['errors'] = string($e);
 		}
 		$array['type'] = $this->type;
-		$array['name'] = $this->name;
+		$array['name'] = substr($this->name,0,1) == '\\' ? substr($this->name,1) : $this->name;
 		$array['time'] = $this->time;
 		$array['string'] = "";
 		$type = strtolower($this->type);
@@ -54,7 +55,7 @@ abstract class PHPUnit_testInstance {
 	function passed($bool = null) {
 	if(is_bool($bool)) {
 			$this->passed = $bool;	
-		} else {
+		} elseif($bool != null) {
 			throw new \Exception('Illegal argument. Expected "boolean", received "'.gettype($bool).'".');
 		}
 		return $this->passed;
@@ -71,7 +72,8 @@ abstract class PHPUnit_testInstance {
 class PHPUnit_TestObject extends PHPUnit_testInstance {
 	protected $type = "Object";
 
-	private $passed_count 	= 0;
+	private $class = "";
+	private $passed_count	= 0;
 	private $methods = array();
 	private $current_method = null;
 	private $method_suffix = null;
@@ -81,13 +83,14 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 	function failed_count()	{ return $this->method_count()-$this->passed_count(); }
 	function method_count()	{ return count($this->methods); }
 	
-	function __construct($test_object) {
+	function __construct($test_object,$object_name="") {
 		$this->method_suffix = PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
 		if($methods == null) {
 			throw new \Exception("Parameter is not an object.");
 		} else {
 			$this->name = get_class($test_object);
+			$this->class = get_class($object_name);
 			foreach($methods as $method) {
 				$reflectionMethod = new \ReflectionMethod($this->name,$method);
 				if (substr($method,-strlen($this->method_suffix)) == $this->method_suffix && $reflectionMethod->getNumberOfParameters() == 0) {

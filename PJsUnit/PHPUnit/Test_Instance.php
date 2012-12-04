@@ -74,7 +74,7 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 	private $passed_count 	= 0;
 	private $methods = array();
 	private $current_method = null;
-	private $method_string = null;
+	private $method_suffix = null;
 	private $was_timed = false;
 	
 	function passed_count()	{ return $this->passed_count; }
@@ -82,7 +82,7 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 	function method_count()	{ return count($this->methods); }
 	
 	function __construct($test_object) {
-		$this->method_string = PHPUnit::method_string();
+		$this->method_suffix = PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
 		if($methods == null) {
 			throw new \Exception("Parameter is not an object.");
@@ -90,7 +90,7 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 			$this->name = get_class($test_object);
 			foreach($methods as $method) {
 				$reflectionMethod = new \ReflectionMethod($this->name,$method);
-				if (substr($method,-strlen($this->method_string)) == $this->method_string && $reflectionMethod->getNumberOfParameters() == 0) {
+				if (substr($method,-strlen($this->method_suffix)) == $this->method_suffix && $reflectionMethod->getNumberOfParameters() == 0) {
 					$test_method = new \PHPUnit_TestMethod($test_object,$method);
 					$this->methods[] = $test_method;
 				}
@@ -199,17 +199,5 @@ class PHPUnit_TestMethod extends PHPUnit_TestFunction {
 		return parent::__toString();
 	}
 }
-class test {
-	function __construct() {
-		;
-	}
-}
-$f = new PHPUnit_TestFunction("fun");
-$test = new test();
-$o = new PHPUnit_TestObject($test);
-$m = new PHPUnit_TestMethod($test,"met");
-echo $f;
-echo $o;
-echo $m;
 
 ?>

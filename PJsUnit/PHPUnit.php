@@ -155,7 +155,10 @@ class PHPUnit {
 	private static $current_function = null;
 	private static $css_file = "PHPUnit.css";
 	private static $standalone_functions = 0;
-	private static $method_string = "_test";
+	private static $method_suffix = "_test";
+	private static $class_suffix = "_test";
+	private static $object_suffix = "_test";
+	private static $function_suffix = "_test";
 	private static $display = "console";
 	private static $errors = array();
 	private static $str_array = array(
@@ -167,16 +170,34 @@ class PHPUnit {
 		"Failed: ",
 		"Time: "
 	);
-	
-	static function method_string($method_string = null) {
-		if($method_string != null) {
-			if(gettype($method_string) == "string") {
-				PHPUnit::$method_string = $method_string;
+
+	function __destruct() {
+		foreach(get_declared_classes() as $class) {
+			if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
+				if(strpos($class,"\\") == false) {
+					$class = "\\".$class;
+				} 
+			} 
+		}
+		$functions = get_defined_functions();
+		foreach($functions['user'] as $function) {
+			if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
+				if(strpos($function,"\\") == false) {
+					$function = "\\".$function;
+				}
+			} 
+		}
+	}
+
+	static function method_suffix($method_suffix = null) {
+		if($method_suffix != null) {
+			if(gettype($method_suffix) == "string") {
+				PHPUnit::$method_suffix = $method_suffix;
 			} else {
 				throw new \Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($display)." was given.");
 			}
 		} else {
-			return PHPUnit::$method_string;
+			return PHPUnit::$method_suffix;
 		}
 	}
 	
@@ -614,4 +635,5 @@ if(file_exists(dirname(__FILE__)."/PHPUnit/Test_Instance.php")) {
 } elseif(file_exists(dirname(__FILE__)."\PHPUnit\Test_Instance.php")) {
 	include dirname(__FILE__)."\PHPUnit\Test_Instance.php";
 }
+$GLOBALS['PHPUnit'] = new PHPUnit();
 ?>

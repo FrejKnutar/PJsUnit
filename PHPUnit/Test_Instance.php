@@ -1,5 +1,148 @@
 <?php namespace PHPUnit;
-if(!class_exists(__NAMESPACE__."\PHPUnit")) return;
+function PHPUnit_timeToString($secs) {
+	$milliseconds  = (int) ($secs*1000);
+	$seconds = floor($secs) % 60;
+	$minutes = floor($secs / 60) % 60;
+	$hours = floor($secs / 3600);
+	$str = "";
+	if($hours>0) {
+		$str .= $hours.":";
+	}
+	if($minutes>9) {
+		$str .= $minutes.":";
+	} elseif($minutes>0) {
+		if($hours > 0) {
+			$str .= '0'.$minutes.":";
+		} else {
+			$str .= $minutes.":";
+		}
+	}
+	if($seconds>9) {
+		$str .= $seconds;
+	} elseif($seconds>0) {
+		if($hours > 0 || $minutes > 0) {
+				$str .= '0'.$seconds;
+		} else {
+			$str .= $seconds;
+		}
+	} else {
+		$str .='0';
+	}
+	if($milliseconds > 999) {
+		$str .= '.'.$milliseconds;
+	} elseif($milliseconds > 99) {
+		$str .= '.0'.$milliseconds;
+	} elseif($milliseconds > 9) {
+		$str .= '.00'.$milliseconds;
+	} elseif($milliseconds > 0) {
+		$str .= '.000'.$milliseconds;
+	}
+	return $str;
+}
+
+class Error {
+	private $file;
+	private $line;
+	private $function;
+	private $class;
+	private $type;
+	private $args = array();
+	private $passed;
+	private $caller;
+	private $padding = "        ";
+	private $str_array = array(
+		"File",
+		"Row",
+		"Function",
+		"true",
+		"false"
+	);
+	
+	function name() { return $this->caller; }
+	function file() { return $this->file; }
+	function line() { return $this->line; }
+	function function_name() { return $this->function; }
+	function class_name() { return $this->class; }
+	function type() { return $this->type; }
+	function passed() { return $this->passed; }
+	function caller() { return $this->caller; }
+
+	function __construct($error) {
+		$this->file = $error["file"];
+		$this->line = int($error["line"]);
+		$this->function = $error["function"];
+		if(isset($error["class"])) {
+			$this->class = $error["class"];
+		} else {
+			$this->class = null;
+		}
+		if(isset($error["type"])) {
+			$this->type = $error["type"];
+		} else {
+			$this->type = null;
+		}
+		$this->args = $error["args"];
+		$this->passed = $error["passed"];
+		if(isset($error["caller"])) {
+			$this->caller = $error["caller"];
+		} else {
+			$this->caller = null;
+		}
+	}
+	
+	function display() {
+		if(\PHPUnit::display() == "html") {
+			$this->html();
+		} else {
+			$this->console();
+		}
+	}
+	
+	function console() {
+		echo $this->padding.$this->str_array[1].": ".$this->line.PHP_EOL;
+		echo $this->padding.$this->str_array[2].": ".$this->function.'(';
+		$count = count($this->args);
+		if($count > 0) foreach($this->args as $a) {
+			if ($a==true) {
+				echo $this->str_array[3];
+			} elseif($a==false) {
+				echo $this->str_array[4];
+			} else {
+				echo $a;
+			}
+			$count--;
+			if($count>0) {
+				echo ', ';
+			}
+		}
+		echo ")".PHP_EOL;
+	}
+	
+	function html() {
+		?><li><label title="<?php echo $this->file;?>" class="file"><?php echo strtoupper($this->str_array[0]);?></label><label title="<?php echo $this->str_array[1];?>" class="row"><?php
+				echo $this->line;
+			?></label><label><span title="<?php echo $this->str_array[2];?>" class="function"><?php
+				echo $this->function.'(';
+			?></span><span title="argument(s)"><?php
+				$count = count($this->args);
+				if($count > 0) foreach($this->args as $a) {
+					?><span class="argument"><?php
+						if ($a==true) {
+							echo $this->str_array[3];
+						} elseif($a==false) {
+							echo $this->str_array[4];
+						} else {
+							echo $a;
+						}
+					?></span><?php
+					$count--;
+					if($count>0) {
+						echo ', ';
+					}
+				}
+		?></span><span class="function">)</span>;</label></li><?php
+	}	
+}
 
 function include_extract($path,$array = array()) {
 	if(file_exists($path)) {
@@ -25,7 +168,7 @@ abstract class PHPUnit_testInstance {
 	protected $type;
 	
 	function __toString() {
-		$suffix = PHPUnit::display();
+		$suffix = \PHPUnit::display();
 		$array['passed'] = $this->passed;
 		$array['errors'] = array();
 		foreach($this->errors as $e) {
@@ -83,18 +226,17 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 	function failed_count()	{ return $this->method_count()-$this->passed_count(); }
 	function method_count()	{ return count($this->methods); }
 	
-	function __construct($test_object,$object_name="") {
-		$this->method_suffix = PHPUnit::method_suffix();
+	function __construct($test_object) {
+		$this->method_suffix = \PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
 		if($methods == null) {
 			throw new \Exception("Parameter is not an object.");
 		} else {
 			$this->name = get_class($test_object);
-			$this->class = get_class($object_name);
 			foreach($methods as $method) {
 				$reflectionMethod = new \ReflectionMethod($this->name,$method);
 				if (substr($method,-strlen($this->method_suffix)) == $this->method_suffix && $reflectionMethod->getNumberOfParameters() == 0) {
-					$test_method = new \PHPUnit_TestMethod($test_object,$method);
+					$test_method = new PHPUnit_TestMethod($test_object,$method);
 					$this->methods[] = $test_method;
 				}
 			}
@@ -102,11 +244,11 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 	}
 	
 	function __toString() {
-		$suffix = PHPUnit::display();
+		$suffix = \PHPUnit::display();
 		$array['passed'] = $this->passed;
 		$array['methods'] = array();
 		foreach($this->methods as $m) {
-			$array['methods'][] = string($m);
+			$array['methods'][] = (string) $m;
 		}
 		$array['type'] = $this->type;
 		$array['name'] = $this->name;
@@ -202,5 +344,4 @@ class PHPUnit_TestMethod extends PHPUnit_TestFunction {
 		return parent::__toString();
 	}
 }
-
 ?>

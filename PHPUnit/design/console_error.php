@@ -8,7 +8,9 @@ $type 		The type (function)
 $name			The function name
 $time			The time it took to run the function.
 */
-$string = "      Row: ".$line.PHP_EOL;
+$string = "      File: ".$file.PHP_EOL;
+$string .= "      Row: ".$row.PHP_EOL;
+$string .= '      Line: "'.$line.'"'.PHP_EOL;
 $string .= "      Function: ".$function.'(';
 for($i=count($arguments)-1;$i>=0;$i--) {
 	$string .= $arguments[$i];

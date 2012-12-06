@@ -41,9 +41,10 @@ function PHPUnit_timeToString($secs) {
 }
 
 function include_extract($path,$array = array()) {
+	if(isset($array['name'])) $array['name'] = substr($array['name'],0,1) == '\\' ? substr($array['name'],1) : $array['name'];
 	if(file_exists($path)) {
 		extract($array);
-		if(isset($name)) $name = substr($name,0,1) == '\\' ? substr($name,1) : $name;
+		unset($array);
 		return include($path);
 	} else {
 		if(strpos($path, '/') == false) {
@@ -53,6 +54,7 @@ function include_extract($path,$array = array()) {
 		}
 		if(file_exists($path)) {
 			extract($array);
+			unset($array);
 			return include($path);
 		}
 	}
@@ -61,6 +63,7 @@ function include_extract($path,$array = array()) {
 
 class Error {
 	private $file;
+	private $row;
 	private $line;
 	private $function;
 	private $class;
@@ -71,7 +74,7 @@ class Error {
 	
 	function __construct($error) {
 		$this->file = $error["file"];
-		$this->line = (int) $error["line"];
+		$this->row = (int) $error["line"];
 		$this->function = $error["function"];
 		if(isset($error["class"])) {
 			$this->class = $error["class"];
@@ -90,14 +93,17 @@ class Error {
 		} else {
 			$this->caller = null;
 		}
+		$file = file($this->file);
+		$this->line = trim($file[$this->row-1]);
 	}
 	
 	function __toString() {
-		$suffix = \PHPUnit::display();
+		$prefix = \PHPUnit::design_prefix();
 		$array = array();
 		$array['type'] = (string) __CLASS__;
 		$array["file"] = $this->file;
 		$array["line"] = $this->line;
+		$array["row"] = $this->row;
 		$array["function"] = $this->function;
 		$array["class"] = $this->class;
 		$array["type"] = $this->type;
@@ -116,7 +122,7 @@ class Error {
 		$array['string'] = "";
 		$type = strtolower(stripslashes(str_replace(__NAMESPACE__,'',__CLASS__)));
 		$dir = dirname(__FILE__);
-		$path=$dir."/design/".$type."_".$suffix.".php";
+		$path=$dir."/design/".$prefix."_".$type.".php";
 		return include_extract($path,$array);
 	}
 
@@ -132,9 +138,10 @@ abstract class Test_Instance {
 	protected $passed = true;
 	protected $time = null;
 	protected $type;
-	
+	protected $run_test = true;
+
 	function __toString() {
-		$suffix = \PHPUnit::display();
+		$prefix = \PHPUnit::design_prefix();
 		$array['passed'] = $this->passed;
 		$array['errors'] = array();
 		foreach($this->errors as $e) {
@@ -146,7 +153,7 @@ abstract class Test_Instance {
 		$array['string'] = "";
 		$type = strtolower($this->type);
 		$dir = dirname(__FILE__);
-		$path=$dir."/design/".$type."_".$suffix.".php";
+		$path=$dir."/design/".$prefix."_".$type.".php";
 		return include_extract($path,$array);
 	}
 
@@ -157,17 +164,27 @@ abstract class Test_Instance {
 	}
 
 	function __set($name, $value) {
-		if($name == "passed" && is_bool($value)) {
-			$this->passed = $bool;
-			return true;
+		switch($name) {
+			case "passed":
+				if(is_bool($value)) {
+					$this->passed = $value;
+					return true;
+				}
+			case "run_test":
+				if(is_bool($value)) {
+					$this->run_test = $value;
+					return true;
+				}
 		}
 		return false;
 	}
 
-	function test($run = true) {
+	function test($run_test = true) {
 		$function = $this->name;
 		$start = microtime(true);
-		if($run) $function();
+		if($this->run_test && $run_test) {
+			$function();
+		}
 		$this->time = microtime(true) - $start;
 		return $this->passed;
 	}
@@ -183,10 +200,10 @@ abstract class Test_Instance {
 class Test_Object extends Test_Instance {
 	protected $type = "Object";
 
+	private $object = null;
 	private $passed_count	= 0;
 	private $methods = array();
 	private $current_method = null;
-	private $method_suffix = null;
 	private $was_timed = false;
 	
 	function __get($name) {
@@ -195,28 +212,50 @@ class Test_Object extends Test_Instance {
 		}
 	}
 
+	function __set($name, $value) {
+		parent::__set($name, $value);
+		if($name == "run_test") {
+			if(is_bool($value)) {
+				foreach($this->methods as $m) {
+					$m->$name = $value;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
 	function __construct($test_object, $is_class = false) {
+		if(!is_object($test_object)) {
+			throw new \Exception("Parameter is not an object.");
+		}
 		if($is_class) {
 			$this->type = "Class";
 		}
-		$this->method_suffix = \PHPUnit::method_suffix();
+		$this->object = $test_object;
+		$this->name = get_class($test_object);
+		$method_suffix = \PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
-		if($methods == null) {
-			throw new \Exception("Parameter is not an object.");
-		} else {
-			$this->name = get_class($test_object);
-			foreach($methods as $method) {
-				$reflectionMethod = new \ReflectionMethod($this->name,$method);
-				if (substr($method,-strlen($this->method_suffix)) == $this->method_suffix && $reflectionMethod->getNumberOfParameters() == 0) {
-					$test_method = new Test_Method($test_object,$method);
-					$this->methods[] = $test_method;
+		$temp_methods = array();
+		foreach($methods as $method) {
+			foreach($this->methods as $m) {
+				if ($m->name == $method) {
+					break(2);
 				}
 			}
+			$reflectionMethod = new \ReflectionMethod($this->name,$method);
+			if (substr($method,-strlen($method_suffix)) == $method_suffix && $reflectionMethod->getNumberOfRequiredParameters() == 0) {
+				$test_method = new Test_Method($test_object,$method);
+				$temp_methods[] = $test_method;
+			}
+		}
+		foreach($temp_methods as $m) {
+			$this->methods[] = $m;
 		}
 	}
 	
 	function __toString() {
-		$suffix = \PHPUnit::display();
+		$prefix = \PHPUnit::design_prefix();
 		$array['passed'] = $this->passed;
 		$array['methods'] = array();
 		foreach($this->methods as $m) {
@@ -230,8 +269,16 @@ class Test_Object extends Test_Instance {
 		$array['string'] = "";
 		$type = strtolower($this->type);
 		$dir = dirname(__FILE__);
-		$path=$dir."/design/".$type."_".$suffix.".php";
+		$path=$dir."/design/".$prefix."_".$type.".php";
 		return include_extract($path,$array);
+	}
+
+	function add_method($method,$run_test) {
+		if(method_exists($this->object, $method)) {
+			$method = new Test_Method($this->object, $method);
+			$method->run_test = false;
+			$this->methods[] = $method;
+		}
 	}
 
 	function add_error($error, $failed=true) {
@@ -257,12 +304,26 @@ class Test_Object extends Test_Instance {
 		return false;
 	}
 
-	function test() {
+	function test($run_test=true) {
 		$time = microtime(true);
+		$set_up_name = \PHPUnit::set_up_name();
+		$tear_down_name = \PHPUnit::tear_down_name();
+		if($this->run_test && $run_test && method_exists($this->object, $set_up_name)) {
+			$reflection_method = new \ReflectionMethod($this->name,$set_up_name);
+			if($reflection_method->getNumberOfRequiredParameters() == 0) {
+				$this->object->$set_up_name();
+			}
+		}
 		foreach($this->methods as $method) {
 			$this->current_method = $method;
-			if($method->test()) {
+			if($method->test($run_test)) {
 				$this->passed_count++;
+			}
+		}
+		if($this->run_test && $run_test && method_exists($this->object, $tear_down_name)) {
+			$reflection_method = new \ReflectionMethod($this->name,$tear_down_name);
+			if($reflection_method->getNumberOfRequiredParameters() == 0) {
+				$this->object->$tear_down_name();
 			}
 		}
 		$this->time = microtime(true) - $time;
@@ -276,7 +337,11 @@ class Test_Function extends Test_Instance {
 	protected $type = "Function";
 	
 	function __construct($function) {
-		$this->name = $function;
+		if(function_exists($function)) {
+			$this->name = $function;
+		} else {
+			throw new \Exception("Trying to create test interface for undefined function '$function'");
+		}
 	}
 
 	function add_error($error, $failed=true) {
@@ -305,15 +370,21 @@ class Test_Method extends Test_Function {
 	private $test_object = null;
 	
 	function __construct($test_object,$method) {
-		parent::__construct($method);
-		$this->test_object = $test_object;
-		$this->type = "Method";
+		if(method_exists($test_object, $method)) {
+			$this->name = $method;
+			$this->test_object = $test_object;
+			$this->type = "Method";
+		} else {
+			throw new \Exception("Trying to create test interface for undefined method '".get_class($test_object)."->$method'");
+		}
 	}
 	
-	function test($run = true) {
+	function test($run_test = true) {
 		$method = $this->name;
 		$start = microtime(true);
-		$this->test_object->$method();
+		if($this->run_test && $run_test) {
+			$this->test_object->$method();
+		}
 		$this->time = microtime(true) - $start;
 		return $this->passed;
 	}

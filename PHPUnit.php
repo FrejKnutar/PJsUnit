@@ -11,12 +11,13 @@ class PHPUnit {
 	private static $objects = array();
 	private static $current_object = null;
 	private static $css_file = "PHPUnit.css";
-	private static $standalone_functions = 0;
+	private static $errors = array();
 	private static $function_suffix = "_test";
 	private static $class_suffix = "_test";
 	private static $method_suffix = "_test";
-	private static $display = "console";
-	private static $errors = array();
+	private static $design_prefix = "console";
+	private static $set_up_name = "set_up";
+	private static $tear_down_name = "tear_down";
 	private static $time = 0;
 
 	function __construct() {}
@@ -38,7 +39,7 @@ class PHPUnit {
 	}
 
 	private static function toString() {
-		$suffix = PHPUnit::display();
+		$prefix = PHPUnit::design_prefix();
 		$array['passed'] = PHPUnit::$passed;
 		$array['functions'] = array();
 		foreach(PHPUnit::$functions as $f) {
@@ -54,8 +55,11 @@ class PHPUnit {
 		}
 		$array['time'] = PHPUnit::$time;
 		$array['string'] = "";
+		$array['passed_count'] = PHPUnit::$passed_count;
+		$array['failed_count'] = PHPUnit::$failed_count;
+		$array['tests'] = count(PHPUnit::$functions) + count(PHPUnit::$objects) + count(PHPUnit::$classes);
 		$dir = dirname(__FILE__);
-		$path=$dir."/PHPUnit/design/".__CLASS__."_".$suffix.".php";
+		$path=$dir."/PHPUnit/design/".$prefix.'_'.__CLASS__.".php";
 		return PHPUnit\include_extract($path,$array);
 	}
 
@@ -129,30 +133,39 @@ class PHPUnit {
 		return PHPUnit::$method_suffix;
 	}
 	
-	static function display($display = null) {
-		if($display != null) {
-			if(gettype($display) == "string") {
-				$display = strtolower($display);
-				switch($display) {
-					case "html":
-					case "h":
-						PHPUnit::$display = "html";
-						break;
-					case "console":
-					case "c":
-						PHPUnit::$display = "console";
-						break;
-					default:
-						throw new Exception(__CLASS__."::".__METHOD__." doesn't recognice string '".$display."'.");
-				}
+	static function design_prefix($prefix = null) {
+		if($prefix != null) {
+			if(gettype($prefix) == "string") {
+				PHPUnit::$design_prefix = $prefix;
 			} else {
-				throw new Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($display)." was given.");
+				throw new Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($prefix)." was given.");
 			}
-		} else {
-			return PHPUnit::$display;
 		}
+		return PHPUnit::$design_prefix;
 	}
 	
+	static function set_up_name($name=null) {
+		if($name != null) {
+			if(gettype($name) == "string") {
+				PHPUnit::$set_up_name = $name;
+			} else {
+				throw new Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($name)." was given.");
+			}
+		}
+		return PHPUnit::$set_up_name;	
+	}
+
+	static function tear_down_name($name=null) {
+		if($name != null) {
+			if(gettype($name) == "string") {
+				PHPUnit::$tear_down_name = $name;
+			} else {
+				throw new Exception(__CLASS__."::".__METHOD__." takes a string as argument, ".gettype($name)." was given.");
+			}
+		}
+		return PHPUnit::$tear_down_name;	
+	}
+
 	static function test() {
 		foreach(PHPUnit::$classes as $class) {
 			PHPUnit::$current_object = $class;
@@ -188,39 +201,44 @@ class PHPUnit {
 		PHPUnit::$current_function = null;
 	}
 
-	private static function add_function($name) {
+	static function add_function($name) {
 		if(function_exists($name)) {
 			foreach(PHPUnit::$functions as $function){
-				if($function->name() == $name) {
-					return false;
+				if($function->name == $name) {
+					return $function;
 				}
 			}
-			PHPUnit::$functions[] = new PHPUnit\Test_Function($name);
-			return true;
+			$reflection = new \ReflectionFunction($name);
+			if($reflection->getNumberOfRequiredParameters() == 0) {
+				$function = new PHPUnit\Test_Function($name);
+				PHPUnit::$functions[] = $function;
+				return $function;	
+			}
 		}
+		return false;
 	}
 
-	private static function add_class($class_name) {
+	static function add_class($class_name) {
 		if(class_exists($class_name)) {
 			foreach(PHPUnit::$classes as $class) {
-				if($class->name() == $class_name) {
-					return false;
+				if($class->name == $class_name) {
+					return $class;
 				}
 			}
-			PHPUnit::$classes[] = new PHPUnit\Test_Object(new $class_name, true);
-			return true;
-		} else {
-			return false;
+			$class = new PHPUnit\Test_Object(new $class_name,true);
+			PHPUnit::$classes[] = $class;
+			return $class;
 		}
+		return false;
 	}
 
-	private static function add_object($object) {
+	static function add_object($object) {
 		if(is_object($object)) {
-			PHPUnit::$objects[] = new PHPUnit\Test_Object($object);
-			return true;
-		} else {
-			return false;
+			$test_object = new PHPUnit\Test_Object($object);
+			PHPUnit::$objects[] = $test_object;
+			return test_object;
 		}
+		return false;
 	}
 
 	private static function current_add_error($error) {
@@ -233,32 +251,16 @@ class PHPUnit {
 				return PHPUnit::$current_function->add_error($error, true);
 			}
 		}
-		if(isset($error['class'])) {
-			$caller = $error['class']."->".$error['function'];
-		} elseif(isset($error['class'])) {
-			unset($error['class']);
-			$caller = $error['function'];
+		if(isset($error->class)) {
+			echo var_dump($error);
+			$test_instance = PHPUnit::add_class($error->class);
+			$test_instance->add_method($error->caller,false);
+		} else {
+			$caller = $error->caller;
+			$test_instance = PHPUnit::add_function($caller);
+			$test_instance->run_test = false;
 		}
-		$function = PHPUnit::add_function($caller);
-		return $function->add_error($error, true);
-	}
-	
-	private static function console() {
-		if(count(PHPUnit::$objects)>0) {
-			echo PHPUnit::$str_array[1].count(PHPUnit::$objects).PHP_EOL;
-		}
-		if(count(PHPUnit::$functions)>0) {
-			echo PHPUnit::$str_array[2].count(PHPUnit::$functions).PHP_EOL;;
-		}
-		if(PHPUnit::$standalone_functions>0) {
-			echo PHPUnit::$str_array[3].PHPUnit::$standalone_functions.PHP_EOL;;
-		}
-		echo PHPUnit::$str_array[4].PHPUnit::$passed_count.' ('.(count(PHPUnit::$objects)>0 ? (PHPUnit::$passed_count/(count(PHPUnit::$objects) + count(PHPUnit::$functions)))*100 .'%' : 'NA').")".PHP_EOL;
-		echo PHPUnit::$str_array[5].PHPUnit::$failed_count.' ('.(count(PHPUnit::$objects)>0 ? (PHPUnit::$failed_count/(count(PHPUnit::$objects) + count(PHPUnit::$functions)))*100 .'%' : 'NA').")".PHP_EOL;
-		$time = PHPUnit_timeToString(microtime(true) - PHPUnit::$start_time);
-		if($time != '0') {
-			echo PHPUnit::$str_array[6].$time." s".PHP_EOL;
-		}
+		return $test_instance->add_error($error, true);
 	}
 	
 	private static function html() {
@@ -301,51 +303,20 @@ class PHPUnit {
 	static private function assertion_passed() {
 		$i = 1;
 		$debug_backtrace = debug_backtrace();
-		$error=$debug_backtrace[$i];
 		if(isset($debug_backtrace[$i+1])) {
 			$caller = $debug_backtrace[$i+1];
-			$error['caller']=$caller['function'];
-			//$error['type']=$caller['type'];
-			if(isset($caller['class'])) {
-				$error['class']=$caller['class'];
-			} else {
-				unset($error['class']);
-			}
-		} else {
-			$caller = null;
-			if(isset($error['class'])) {
-				unset($error['class']);
-			}
-			$error['caller'] = null;
-		}
+			if((PHPUnit::$current_object == null && PHPUnit::$current_function == null) ||
+				(PHPUnit::$current_object != null && isset($caller["class"]) && $caller["class"] != PHPUnit::$current_object->name) || 
+				(PHPUnit::$current_function != null && $caller["function"] == PHPUnit::$current_function->name)) {
 				
-		if((PHPUnit::$current_object == null && PHPUnit::$current_function == null) ||
-			(PHPUnit::$current_object != null && isset($caller["class"]) && $caller["class"] != PHPUnit::$current_object->name()) || 
-			(PHPUnit::$current_function != null && $caller["function"] == PHPUnit::$current_function->name())) {
-			
-			$debug_backtrace=debug_backtrace();
-			$error=$debug_backtrace[$i];
-			if(isset($debug_backtrace[$i+1])) {
-				$caller = $debug_backtrace[$i+2];
-				$error['caller']=$caller['function'];
-			} else {
-				$caller = null;
-				$error['caller']=null;
+				if(isset($caller['class'])) {
+					$class = PHPUnit::add_class($caller['class']);
+					$class->add_method($caller['function'],false);
+				} else {
+					$function = PHPUnit::add_function($caller['function']);
+					$function->run_test = false;
+				}
 			}
-			$isfunction = true;
-			if(isset($caller['class'])) {
-				$caller = $caller['class']."->".$caller['function'];
-			} elseif(isset($error['class'])) {
-				unset($error['class']);
-				$caller = $error['function'];
-			}
-			if(isset($caller) && isset($caller['function'])) {
-				$error['caller'] = $caller['function'];
-			} else {
-				$caller = $error['file'];
-				$isfunction = false;
-			}
-			$function = PHPUnit::add_function($caller,$isfunction);
 		}
 	}
 	
@@ -378,19 +349,23 @@ class PHPUnit {
 		PHPUnit::current_add_error($error);
 	}
 	
-	static function assertTrue($bool) {
+	static function assert_true($bool) {
 		if($bool === false) {
 			PHPUnit::assertion_failed();
+			return true;
 		} else {
 			PHPUnit::assertion_passed();
+			return false;
 		}
 	}
 	
-	static function assertFalse($bool) {
+	static function assert_false($bool) {
 		if($bool === true) {
 			PHPUnit::assertion_failed();
+			return true;
 		} else {
 			PHPUnit::assertion_passed();
+			return false;
 		}
 	}
 	

@@ -14,19 +14,33 @@ if(count($functions) > 0) {
 	$string .= "Functions:".PHP_EOL;
 }
 foreach($functions as $f) {
-	$string .= $f.PHP_EOL;
+	$string .= $f;
 }
 if(count($classes) > 0) {
 	$string .= "Classes:".PHP_EOL;
 }
 foreach($classes as $c) {
-	$string .= $c.PHP_EOL;
+	$string .= $c;
 }
 if(count($objects) > 0) {
 	$string .= "Objects:".PHP_EOL;
 }
 foreach($objects as $o) {
-	$string .= $o.PHP_EOL;
+	$string .= $o;
+}
+if(count($functions)>0) {
+	$string .= "Functions: ".count($functions).PHP_EOL;
+}
+if(count($objects)>0) {
+	$string .= "Objects: ".count($objects).PHP_EOL;
+}
+if(count($classes)>0) {
+	$string .= "classes: ".count($classes).PHP_EOL;
+}
+$string .= "Passed: ".$passed_count.' ('.($tests>0 ? ((string) ($passed_count/$tests*100).'%') : 'NA').")".PHP_EOL;
+$string .= "Failed: ".$failed_count.' ('.($tests>0 ? ((string) ($failed_count/$tests*100).'%') : 'NA').")".PHP_EOL;
+if($time != '0') {
+	$string .= "Time: ".$time." s".PHP_EOL;
 }
 return $string;
 ?>

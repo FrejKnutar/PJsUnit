@@ -11,7 +11,7 @@ class class_test {
 }
 
 function function_test() {
-	PHPUnit::assertTrue(true);
+	PHPUnit::assertTrue(false);
 }
 
 $obj_test = new class_test();

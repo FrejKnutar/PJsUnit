@@ -40,36 +40,38 @@ function PHPUnit_timeToString($secs) {
 	return $str;
 }
 
+function include_extract($path,$array = array()) {
+	if(file_exists($path)) {
+		extract($array);
+		if(isset($name)) $name = substr($name,0,1) == '\\' ? substr($name,1) : $name;
+		return include($path);
+	} else {
+		if(strpos($path, '/') == false) {
+			$path = str_replace("/", "\\", $path);
+		} else {
+			$path = str_replace("\\", "/", $path);
+		}
+		if(file_exists($path)) {
+			extract($array);
+			return include($path);
+		}
+	}
+	return "File at location '$path' not found.".PHP_EOL;	
+}
+
 class Error {
 	private $file;
 	private $line;
 	private $function;
 	private $class;
 	private $type;
-	private $args = array();
+	private $arguments = array();
 	private $passed;
 	private $caller;
-	private $padding = "        ";
-	private $str_array = array(
-		"File",
-		"Row",
-		"Function",
-		"true",
-		"false"
-	);
 	
-	function name() { return $this->caller; }
-	function file() { return $this->file; }
-	function line() { return $this->line; }
-	function function_name() { return $this->function; }
-	function class_name() { return $this->class; }
-	function type() { return $this->type; }
-	function passed() { return $this->passed; }
-	function caller() { return $this->caller; }
-
 	function __construct($error) {
 		$this->file = $error["file"];
-		$this->line = int($error["line"]);
+		$this->line = (int) $error["line"];
 		$this->function = $error["function"];
 		if(isset($error["class"])) {
 			$this->class = $error["class"];
@@ -81,7 +83,7 @@ class Error {
 		} else {
 			$this->type = null;
 		}
-		$this->args = $error["args"];
+		$this->arguments = $error["args"];
 		$this->passed = $error["passed"];
 		if(isset($error["caller"])) {
 			$this->caller = $error["caller"];
@@ -90,78 +92,42 @@ class Error {
 		}
 	}
 	
-	function display() {
-		if(\PHPUnit::display() == "html") {
-			$this->html();
-		} else {
-			$this->console();
-		}
-	}
-	
-	function console() {
-		echo $this->padding.$this->str_array[1].": ".$this->line.PHP_EOL;
-		echo $this->padding.$this->str_array[2].": ".$this->function.'(';
-		$count = count($this->args);
-		if($count > 0) foreach($this->args as $a) {
-			if ($a==true) {
-				echo $this->str_array[3];
-			} elseif($a==false) {
-				echo $this->str_array[4];
+	function __toString() {
+		$suffix = \PHPUnit::display();
+		$array = array();
+		$array['type'] = (string) __CLASS__;
+		$array["file"] = $this->file;
+		$array["line"] = $this->line;
+		$array["function"] = $this->function;
+		$array["class"] = $this->class;
+		$array["type"] = $this->type;
+		$array["arguments"] = array();
+		foreach($this->arguments as $arg) {
+			if($arg == true) {
+				$array["arguments"][] = "true";
+			} elseif($arg == false) {
+				$array["arguments"][] = "false";
 			} else {
-				echo $a;
-			}
-			$count--;
-			if($count>0) {
-				echo ', ';
+				$array["arguments"][] = $arg;
 			}
 		}
-		echo ")".PHP_EOL;
+		$array["passed"] = $this->passed;
+		$array["caller"] = $this->caller;
+		$array['string'] = "";
+		$type = strtolower(stripslashes(str_replace(__NAMESPACE__,'',__CLASS__)));
+		$dir = dirname(__FILE__);
+		$path=$dir."/design/".$type."_".$suffix.".php";
+		return include_extract($path,$array);
 	}
-	
-	function html() {
-		?><li><label title="<?php echo $this->file;?>" class="file"><?php echo strtoupper($this->str_array[0]);?></label><label title="<?php echo $this->str_array[1];?>" class="row"><?php
-				echo $this->line;
-			?></label><label><span title="<?php echo $this->str_array[2];?>" class="function"><?php
-				echo $this->function.'(';
-			?></span><span title="argument(s)"><?php
-				$count = count($this->args);
-				if($count > 0) foreach($this->args as $a) {
-					?><span class="argument"><?php
-						if ($a==true) {
-							echo $this->str_array[3];
-						} elseif($a==false) {
-							echo $this->str_array[4];
-						} else {
-							echo $a;
-						}
-					?></span><?php
-					$count--;
-					if($count>0) {
-						echo ', ';
-					}
-				}
-		?></span><span class="function">)</span>;</label></li><?php
-	}	
-}
 
-function include_extract($path,$array = array()) {
-	if(file_exists($path)) {
-		extract($array);
-		if(isset($name)) $name = substr($name,0,1) == '\\' ? substr($name,1) : $name;
-		return include($path);
-	} else {
-		if(strpos($path, "/") != false) {
-			$path = str_replace("/", "\\", $path);
-		} else {
-			$path = str_replace("\\", "/", $path);
-		}
-		if(file_exists($path)) {
-			return include($path);
+	function __get($name) {
+		if(property_exists(__CLASS__, $name)) {
+			return $this->$name;
 		}
 	}
 }
 
-abstract class PHPUnit_testInstance {
+abstract class Test_Instance {
 	protected $name = null;
 	protected $passed = true;
 	protected $time = null;
@@ -172,7 +138,7 @@ abstract class PHPUnit_testInstance {
 		$array['passed'] = $this->passed;
 		$array['errors'] = array();
 		foreach($this->errors as $e) {
-			$array['errors'] = string($e);
+			$array['errors'][] = (string) $e;
 		}
 		$array['type'] = $this->type;
 		$array['name'] = substr($this->name,0,1) == '\\' ? substr($this->name,1) : $this->name;
@@ -184,49 +150,55 @@ abstract class PHPUnit_testInstance {
 		return include_extract($path,$array);
 	}
 
+	function __get($name) {
+		if(property_exists(__CLASS__, $name)) {
+			return $this->$name;
+		}
+	}
+
+	function __set($name, $value) {
+		if($name == "passed" && is_bool($value)) {
+			$this->passed = $bool;
+			return true;
+		}
+		return false;
+	}
+
 	function test($run = true) {
-		$function = $this->name();
+		$function = $this->name;
 		$start = microtime(true);
 		if($run) $function();
 		$this->time = microtime(true) - $start;
-		return $this->passed();
-	}
-
-	function name() { return $this->name; }
-	function time()	{ return $this->time; }
-	
-	function passed($bool = null) {
-	if(is_bool($bool)) {
-			$this->passed = $bool;	
-		} elseif($bool != null) {
-			throw new \Exception('Illegal argument. Expected "boolean", received "'.gettype($bool).'".');
-		}
 		return $this->passed;
 	}
 		
 	function add_error($error) {
-		if(!is_a($error, __NAMESPACE__."/Error")) {
+		if(!is_a($error, __NAMESPACE__."\\Error")) {
 			throw new \Exception('Illegal argument. Expected "'.__NAMESPACE__.'"/Error", received "'.gettype($error).'".');
 			return false;
 		}
 	}
 }
 
-class PHPUnit_TestObject extends PHPUnit_testInstance {
+class Test_Object extends Test_Instance {
 	protected $type = "Object";
 
-	private $class = "";
 	private $passed_count	= 0;
 	private $methods = array();
 	private $current_method = null;
 	private $method_suffix = null;
 	private $was_timed = false;
 	
-	function passed_count()	{ return $this->passed_count; }
-	function failed_count()	{ return $this->method_count()-$this->passed_count(); }
-	function method_count()	{ return count($this->methods); }
-	
-	function __construct($test_object) {
+	function __get($name) {
+		if(property_exists(__CLASS__, $name)) {
+			return $this->$name;
+		}
+	}
+
+	function __construct($test_object, $is_class = false) {
+		if($is_class) {
+			$this->type = "Class";
+		}
 		$this->method_suffix = \PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
 		if($methods == null) {
@@ -236,7 +208,7 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 			foreach($methods as $method) {
 				$reflectionMethod = new \ReflectionMethod($this->name,$method);
 				if (substr($method,-strlen($this->method_suffix)) == $this->method_suffix && $reflectionMethod->getNumberOfParameters() == 0) {
-					$test_method = new PHPUnit_TestMethod($test_object,$method);
+					$test_method = new Test_Method($test_object,$method);
 					$this->methods[] = $test_method;
 				}
 			}
@@ -264,23 +236,25 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 
 	function add_error($error, $failed=true) {
 		try {
-			parent::add_error($error);
-			if($error->name() == $this->current_method->name()) {
+			if($error->caller == $this->current_method->name) {
 				$method = $this->current_method;
 			} else {
 				foreach($this->methods as $m) {
-					if($m->name() ==  $error->name()) {
+					if($m->name() ==  $error->name) {
 						$method = $m;
 						break;
 					}
 				}
 			}
 			if($failed) $this->passed = false;
-			return true;
+			if(isset($method)) {
+				return $method->add_error($error, $failed);
+			}
 		} catch (\Exception $exception) {
 			throw $exception;
 			return false;
 		}
+		return false;
 	}
 
 	function test() {
@@ -292,12 +266,12 @@ class PHPUnit_TestObject extends PHPUnit_testInstance {
 			}
 		}
 		$this->time = microtime(true) - $time;
-		return $this->passed();
+		return $this->passed;
 	}
 	
 }
 
-class PHPUnit_TestFunction extends PHPUnit_testInstance {
+class Test_Function extends Test_Instance {
 	protected $errors = array();
 	protected $type = "Function";
 	
@@ -308,12 +282,16 @@ class PHPUnit_TestFunction extends PHPUnit_testInstance {
 	function add_error($error, $failed=true) {
 		try {
 			parent::add_error($error);
-			if($error->function == $this->name) {
+			$name = $this->name;
+			if($name{0} == '\\') {
+				$name = substr($name, 1);
+			}
+			if($error->caller == $name) {
 				$this->errors[] = $error;
 				if($failed) $this->passed = false;
 				return true;
 			} else {
-				throw new \Exception("Illegal argument. The argument error wasn't encountered in function \"".$this->name.'" but in function "'.$error->function().'.');
+				throw new \Exception("Illegal argument. The argument error wasn't encountered in function \"".$this->name.'" but in function "'.$error->caller.'.');
 			}
 		}
 		catch(\Exception $e) {
@@ -323,7 +301,7 @@ class PHPUnit_TestFunction extends PHPUnit_testInstance {
 	}
 }
 
-class PHPUnit_TestMethod extends PHPUnit_TestFunction {
+class Test_Method extends Test_Function {
 	private $test_object = null;
 	
 	function __construct($test_object,$method) {
@@ -333,15 +311,11 @@ class PHPUnit_TestMethod extends PHPUnit_TestFunction {
 	}
 	
 	function test($run = true) {
-		$method = $this->name();
+		$method = $this->name;
 		$start = microtime(true);
 		$this->test_object->$method();
 		$this->time = microtime(true) - $start;
 		return $this->passed;
-	}
-	
-	function __toString() {
-		return parent::__toString();
 	}
 }
 ?>

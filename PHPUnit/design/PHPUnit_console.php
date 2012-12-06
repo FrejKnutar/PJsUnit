@@ -16,8 +16,14 @@ if(count($functions) > 0) {
 foreach($functions as $f) {
 	$string .= $f.PHP_EOL;
 }
-if(count($objects) > 0) {
+if(count($classes) > 0) {
 	$string .= "Classes:".PHP_EOL;
+}
+foreach($classes as $c) {
+	$string .= $c.PHP_EOL;
+}
+if(count($objects) > 0) {
+	$string .= "Objects:".PHP_EOL;
 }
 foreach($objects as $o) {
 	$string .= $o.PHP_EOL;

@@ -18,7 +18,7 @@ $string = "    ".$type.": ".$name."()";
 	} else {
 		$string.= " FAILED".PHP_EOL;
 		foreach($errors as $e) {
-			$string.= "    ".$e;
+			$string.= $e;
 		}
 	}
 return $string;

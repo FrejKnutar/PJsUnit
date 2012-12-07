@@ -236,7 +236,7 @@ class PHPUnit {
 		if(is_object($object)) {
 			$test_object = new PHPUnit\Test_Object($object);
 			PHPUnit::$objects[] = $test_object;
-			return test_object;
+			return $test_object;
 		}
 		return false;
 	}
@@ -261,43 +261,6 @@ class PHPUnit {
 			$test_instance->run_test = false;
 		}
 		return $test_instance->add_error($error, true);
-	}
-	
-	private static function html() {
-		?><div class="PHPUnitResults"><?php
-		if(count(PHPUnit::$objects)>0) {
-			?><p><label><?php echo PHPUnit::$str_array[1];?></label>&nbsp<?php
-				echo count(PHPUnit::$objects);
-			?></p><?php
-		}
-		if(count(PHPUnit::$functions)>0) {
-			?><p><label><?php echo PHPUnit::$str_array[2];?></label>&nbsp<?php
-				echo count(PHPUnit::$functions);
-			?></p><?php
-		}
-		if(PHPUnit::$standalone_functions>0) {
-			?><p><label><?php echo PHPUnit::$str_array[3];?></label>&nbsp<?php
-				echo PHPUnit::$standalone_functions;
-			?></p><?php
-		}
-		?><p><label><?php echo PHPUnit::$str_array[4];?></label>&nbsp<?php
-			echo PHPUnit::$passed_count;
-			echo ' (';
-			echo count(PHPUnit::$objects)>0 ? (PHPUnit::$passed_count/(count(PHPUnit::$objects) + count(PHPUnit::$functions)))*100 .'%' : 'NA';
-			echo ')';
-		?></p><p><label><?php echo PHPUnit::$str_array[5];?></label>&nbsp<?php
-			echo PHPUnit::$failed_count;
-			echo ' (';
-			echo count(PHPUnit::$objects)>0 ? (PHPUnit::$failed_count/(count(PHPUnit::$objects) + count(PHPUnit::$functions)))*100 .'%' : 'NA';
-			echo ')';
-		?></p><?php 
-		$time = PHPUnit_timeToString(microtime(true) - PHPUnit::$start_time);
-		if($time != '0') {
-			?><p><label><?php echo PHPUnit::$str_array[6];?></label>&nbsp<?php
-				echo $time." s";
-			?></p><?php
-		}
-		?></div><?php
 	}
 	
 	static private function assertion_passed() {
@@ -366,133 +329,6 @@ class PHPUnit {
 		} else {
 			PHPUnit::assertion_passed();
 			return false;
-		}
-	}
-	
-	static private function html_initialization() {
-		if(PHPUnit::$initialization) {
-			
-			$path = __FILE__;
-			$pos = strrpos($path,'/');
-			if($pos == false) {
-				$pos = strrpos($path,'\\');
-			}
-			$path = substr($path,0,$pos+1);
-			
-			if(file_exists($path.PHPUnit::$css_file)) {
-				?><style type="text/css"><?php
-					echo file_get_contents($path.PHPUnit::$css_file);
-				?></style><?php
-			}
-			?><script type="text/javascript">
-				
-				// Dean Edwards/Matthias Miller/John Resig
-
-				if (document.addEventListener) {
-					document.addEventListener("DOMContentLoaded", PHPUnit_init, false);
-				}
-
-				/*@cc_on @*/
-				/*@if (@_win32)
-					document.write("<script id=__ie_onload defer src=javascript:void(0)><\/script>");
-					var script = document.getElementById("__ie_onload");
-					script.onreadystatechange = function() {
-					if (this.readyState == "complete") {
-						PHPUnit_init(); // call the onload handler
-					}
-					};
-				/*@end @*/
-
-				if (/WebKit/i.test(navigator.userAgent)) {
-					var _timer = setInterval(function() {
-					if (/loaded|complete/.test(document.readyState)) {
-						PHPUnit_init();
-					}
-					}, 10);
-				}
-
-				window.onload = PHPUnit_init;
-				
-				function PHPUnit_Purge(d) {
-					var a = d.attributes, i, l, n;
-					if (a) {
-						for (i = a.length - 1; i >= 0; i -= 1) {
-							n = a[i].name;
-							if (typeof d[n] === 'function') {
-								d[n] = null;
-							}
-						}
-					}
-					a = d.childNodes;
-					if (a) {
-						l = a.length;
-						for (i = 0; i < l; i += 1) {
-							PHPUnit_Purge(d.childNodes[i]);
-						}
-					}
-				}
-				function PHPUnit_init() {
-					if (arguments.callee.done) return;
-					arguments.callee.done = true;
-					if (_timer) clearInterval(_timer);
-					var getElementsByClassName = function(className) {
-							var hasClassName = new RegExp("(?:^|\\s)" + className + "(?:$|\\s)");
-							var allElements = document.getElementsByTagName("*");
-							var results = [];
-
-							var element;
-							for (var i = 0; (element = allElements[i]) != null; i++) {
-								var elementClass = element.className;
-								if (elementClass && elementClass.indexOf(className) != -1 && hasClassName.test(elementClass))
-									results.push(element);
-							}
-							return results;
-						}
-					var PHPUnitResults = getElementsByClassName("PHPUnitResults");
-					var PHPUnitDivs = getElementsByClassName("PHPUnit");
-					var PHPUnitDiv = null;
-					var PHPUnitResult = null;
-					var ol,PHPUnitOl;
-					
-					if(PHPUnitDivs.length > 0) {
-						PHPUnitDiv = PHPUnitDivs[0];
-						if(PHPUnitDiv.getElementsByTagName("OL").length > 0) {
-							PHPUnitOl = PHPUnitDiv.getElementsByTagName("OL")[0];
-						} else {
-							PHPUnitOL = document.createElement("OL");
-							PHPUnitDiv.appendChild(PHPUnitOL);
-						}
-						for(var i=1;i<PHPUnitDivs.length;i++) {
-							ol=PHPUnitDivs[i].getElementsByTagName("OL");
-							for(var j=0; j<ol.length; j++) {
-								for(var k=0; k<ol[j].childNodes.length;k++) {
-									PHPUnitOl.appendChild(ol[j].childNodes[k]);
-								}
-								PHPUnit_Purge(ol[j]);
-								ol[j].parentNode.removeChild(ol[j]);
-							}
-							PHPUnit_Purge(PHPUnitDivs[i]);
-							PHPUnitDivs[i].parentNode.removeChild(PHPUnitDivs[i]);
-						}
-					}
-					if(PHPUnitResults.length > 0) {
-						for(var i=0;i<PHPUnitResults.length -1;i++) {
-							PHPUnit_Purge(PHPUnitResults[i]);
-							PHPUnitResults[i].parentNode.removeChild(PHPUnitResults[i]);
-						}
-						PHPUnitResult = PHPUnitResults[PHPUnitResults.length - 1];
-					}
-					if(PHPUnitDiv != null && PHPUnitResult != null) {
-						PHPUnitDiv.appendChild(PHPUnitResult);
-					}
-				}
-			</script>
-			<div class="PHPUnit">
-			<h1>PHPUnit</h1>
-			<h4>by: Frej Knutar</h4>
-			<?php
-		} else {
-			?><div class="PHPUnit"><?php
 		}
 	}
 }

@@ -51,7 +51,7 @@ function bar() {
 }
 
 $obj = new class_test();
-$obj->test();
+PHPUnit::add_object($obj);
 
 PHPUnit::add_function("foo");
 bar();

@@ -1,90 +1,109 @@
 <?php
 /**
- * This class is a static class. All methods that are to be called, externally, from this class are static.
- * Depending on information in the <b>PHPUnit.ini</b> file the functionality will differ. Classes and functions will be added automatically to the Class.
- * Functions and object that calls <i>Assertion</i> methods will be added automatically to the Class.
- * @author Frej P. Knutar
- * @static This class is static. Creating PHPUnit objects will not add additional functionality, but only call the descrucotr additional times.
+ * A <b>static</b> class that automatically tests desired code. See readme for more information on functionality.
+ * @authorFrej P. Knutar
+ * @staticThis class is static. Creating PHPUnit objects will not add additional functionality, but only call the destructor additional times.
  * @category Unit Testing
- * @example Calling a method: <b>PHPUnit</b>::method_name(<i>$parameter</i>).
+ * @exampleTo change attributes call the get and set methods:</br>
+ * <b>PHPUnit</b>::attribute_name(<i>$desired_value</i>) </br>
+ * note that not all attributes can be changed or returned.
+ * @exampleCalling a method:</br><b>PHPUnit</b>::method_name(<i>$parameter</i>);
+ * @exampleAdding a class to PHPUnit:</br><b>PHPUnit</b>::add_class(<i>"Class_Name"</i>);
+ * @exampleAdding an object to PHPUnit:</br><b>PHPUnit</b>::add_object(new Class_Name());
+ * @exampleAdding a function to PHPUnit:</br><b>PHPUnit</b>::add_function(<i>"function_name"</i>);
+ * @tutorialif attributes have the values:</br>
+ * <i>class_suffix</i>="_test"</br>
+ * <i>function_suffix</i>="_test"</br>
+ * <i>method_suffix</i>="_test"</br>
+ * <i>build_up_name</i>="build_up"</br>
+ * <i>tear_down_name</i>="tear_down"</br>
+ * The <b>bold</b> classes, functions and methods will be added automatically to PHPUnit on shut down:</br>
+ * (class) <b>Class_test</b> </br>
+ * (class) ClassTest </br>
+ * (method) <b>$added_obj->build_up()</b><br>
+ * (method) <b>$added_obj->method_test</b><br>
+ * (method) $added_obj->methodTest<br>
+ * (method) <b>$added_obj->tear_down()</b><br>
+ * (function) <b>fun_test()</b><br>
+ * (function) funtest()
  */
 class PHPUnit {
 	/**
 	 * the amount of functions, classes and objects that failed one, or more, of their their test cases.
-	 * @var int
+	 * @varint
 	 */
 	private static $failed_count = 0;
 	/**
 	 * the amount of functions, classes and objects that passed all of their their test cases.
-	 * @var int
+	 * @varint
 	 */
 	private static $passed_count = 0;
 	/**
 	 * True if all unit tests have passed, else false.
-	 * @var bool
+	 * @varbool
 	 */
 	private static $passed = true;
 	/**
 	 * an array holding all functions that are, or has been, to be tested.
-	 * @var array()
+	 * @vararray()
 	 */
 	private static $functions = array();
 	/**
 	 * The function that is currently being tested.
-	 * @var \PHPUnit\Test_Function
+	 * @var\PHPUnit\Test_Function
 	 */
 	private static $current_function = null;
 	/**
 	 * An array holding all classes that are, or has been, to be tested.
-	 * @var array()
+	 * @vararray()
 	 */
 	private static $classes = array();
 	/**
 	 * An array holding all objects that are, or has been, to be tested.
-	 * @var array()
+	 * @vararray()
 	 */
 	private static $objects = array();
 	/**
 	 * The Object or class that is currently being tested.
-	 * @var \PHPUnit\Test_Object
+	 * @var\PHPUnit\Test_Object
 	 */
 	private static $current_object = null;
 	/**
 	 * The suffix that function names must have in order to be added automatically to be tested.
-	 * @var String
+	 * @varString
 	 */
 	private static $function_suffix = "_test";
 	/**
 	 * The suffix that class names must have in order to be added automatically to be tested.
-	 * @var String
+	 * @varString
 	 */
 	private static $class_suffix = "_test";
 	/**
 	 * The suffix that method names of classes and objects that are to be tested must have in order to be added automatically to be tested.
-	 * @var String
+	 * @varString
 	 */
 	private static $method_suffix = "_test";
 	/**
 	 * The prefix that files must have in order to be used to display data about PHPUnit, functions, classes, objects and errors.
-	 * @var String
+	 * @varString
 	 * @example the value <b>console</b> will make objects of this class call the file <b>design/console_PHPUnit.php</b> when converted to a string.
 	 */
 	private static $design_prefix = "console";
 	/**
 	 * The name of the method that will be called first, if it exist and required no parameters,  by the library/test engine of all classes and objects that are to be tested.
-	 * @var String
+	 * @varString
 	 * @example the value <b>set_up</b> will make an object, that is to be tested, with a method called <b>set_up()</b> being called before any other of the methods of the object have been called.   
 	 */
 	private static $set_up_name = "set_up";
 	/**
 	 * The name of the method that will be called last, if it exist and required no parameters,  by the library/test engine of all classes and objects that are to be tested.
-	 * @var String
-	 * @example the value <b>tear_down</b> will make an object, that is to be tested, with a method called <b>tear_down()</b> being called after all test methods of the object have been called.   
+	 * @varString
+	 * @examplethe value <b>tear_down</b> will make an object, that is to be tested, with a method called <b>tear_down()</b> being called after all test methods of the object have been called.   
 	 */
 	private static $tear_down_name = "tear_down";
 	/**
 	 * The time it took to run all unit tests.
-	 * @var int   
+	 * @varint   
 	 */
 	private static $time = 0;
 
@@ -117,6 +136,7 @@ class PHPUnit {
 	/**
 	 * Method that is called when trying to convert the object into a String.
 	 * To alter how the data is formatted see the file <b>design/console_PHPUnit.php</b>.
+	 * @varString
 	 */
 	public function __toString() {
 		return PHPUnit::toString();
@@ -125,6 +145,7 @@ class PHPUnit {
 	/**
 	 * Method that is called, internally, when trying to convert the object into a String.
 	 * To alter how the data is formatted see the file <b>design/console_PHPUnit.php</b>.
+	 * @varString
 	 */	
 	private static function toString() {
 		$prefix = PHPUnit::design_prefix();
@@ -152,12 +173,13 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Method that is called when trying to change, set, an attribute (class variable), externally.
-	 * The method calls the appropriate method to change the attribute.
-	 * @var Different depending on the attribute.
-	 * @return The attribute that is to be set.
-	 * @throws Exception if the variable does not exist or if the attribute cant be changed externally.
-	 * @example <b>$phpunit->method_suffix</b> = <i>"_test"</i>; calls <b>PHPUnit::method_suffix</b>(<i>"_test"</i>);
+	 * Generic "set" method of the class. Changes, and returns, the value of the desired attribute.
+	 * @varDifferent depending on the attribute.
+	 * @returnThe attribute that is to be set.
+	 * @param$name The name of the attribute that should be changed.
+	 * @param$value The value that the attribute should be changed to.
+	 * @throwsException if the variable does not exist or if the attribute cant be changed externally.
+	 * @example<b>$phpunit</b>->method_suffix = <i>"_test"</i>;
 	 */
 	public function __set($name, $value) {
 		if(method_exists(__CLASS__, $name) && property_exists(__CLASS__, $name)) {
@@ -173,12 +195,12 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Method that is called when trying to fetch, or get, an attribute (class variable), externally.
-	 * The method calls the appropriate method ad returns the value of that method.
-	 * @var Different depending on the attribute.
-	 * @return the attribute that is to be fetched.
-	 * @throws Exception if the variable does not exist or if the attribute cant be fetched externally.
-	 * @example <b>$phpunit->method_suffix</b> calls <b>PHPUnit::method_suffix</b>();
+	 * Generic "get" method of the class. Returns the desired attribute if possible.
+	 * @varDifferent depending on the attribute.
+	 * @returnthe attribute that is to be fetched.
+	 * @param$name The name of the attribute.
+	 * @throwsException if the variable does not exist or if the attribute cant be fetched externally.
+	 * @example<b>$phpunit</b>->design_prefix;
 	 */
 	public function __get($name) {
 		if(method_exists(__CLASS__, $name) && property_exists(__CLASS__, $name)) {
@@ -194,11 +216,12 @@ class PHPUnit {
 	}
 
 	/**
-	 * Returns the <b>$function_suffix</b> attribute.
-	 * @param if a String parameter is sent the <b>$function_suffix</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>$function_suffix</b> attribute.
-	 * @example <b>PHPUnit::method_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
+	 * Get and set method of the static attribute <b>$function_suffix</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @varString
+	 * @param$suffix The String that the suffix should be changed to.
+	 * @returnthe <b>$function_suffix</b> attribute.
+	 * @example<b>PHPUnit::method_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
 	 */
 	static function function_suffix($suffix = null) {
 		if($suffix != null) {
@@ -211,11 +234,12 @@ class PHPUnit {
 		return PHPUnit::$function_suffix;
 	}	
 	/**
-	 * Returns the <b>$class_suffix</b> attribute.
-	 * @param if a String parameter is sent the <b>$class_suffix</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>class_suffix</b> attribute.
-	 * @example <b>PHPUnit::class_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
+	 * Get and set method of the static attribute <b>$class_suffix</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @varString
+	 * @param$suffix The String that the suffix should be changed to.
+	 * @returnthe <b>class_suffix</b> attribute.
+	 * @example<b>PHPUnit::class_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
 	 */
 	static function class_suffix($suffix = null) {
 		if($suffix != null) {
@@ -229,11 +253,12 @@ class PHPUnit {
 	}
 
 	/**
-	 * Returns the <b>$method_suffix</b> attribute.
-	 * @param if a String parameter is sent the <b>$method_suffix</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>method_suffix</b> attribute.
-	 * @example <b>PHPUnit::method_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
+	 * Get and set method of the static attribute <b>$method_suffix</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @varString
+	 * @param$suffix The String that the suffix should be changed to.
+	 * @returnthe <b>method_suffix</b> attribute.
+	 * @example<b>PHPUnit::method_suffix</b>(<i>"_test"</i>); sets the value of the attribute to <i>"_test"</i> and the method will now return <i>"_test"</i>.
 	 */
 	static function method_suffix($suffix = null) {
 		if($suffix != null) {
@@ -247,11 +272,12 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Returns the <b>$design_prefix</b> attribute.
-	 * @param if a String parameter is sent the <b>$design_prefix</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>$design_prefix</b> attribute.
-	 * @example <b>PHPUnit::design_prefix</b>(<i>"html"</i>); sets the value of the attribute to <i>"html"</i> and the method will now return <i>"html"</i>.
+	 * Get and set method of the static attribute <b>$design_prefix</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @param$prefix The String that the prefix should be changed to.
+	 * @varString
+	 * @returnthe <b>$design_prefix</b> attribute.
+	 * @example<b>PHPUnit::design_prefix</b>(<i>"html"</i>); sets the value of the attribute to <i>"html"</i> and the method will now return <i>"html"</i>.
 	 */
 	static function design_prefix($prefix = null) {
 		if($prefix != null) {
@@ -265,11 +291,12 @@ class PHPUnit {
 	}
 
 	/**
-	 * Returns the <b>$set_up_name</b> attribute.
-	 * @param if a String parameter is sent the <b>$set_up_name</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>$set_up_name</b> attribute.
-	 * @example <b>PHPUnit::set_up_name</b>(<i>"set_up"</i>); sets the value of the attribute to <i>"set_up"</i> and the method will now return <i>"set_up"</i>.
+	 * Get and set method of the static attribute <b>$set_up_name</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @paramif a String parameter is sent the <b>$set_up_name</b> attribute is set to that value.
+	 * @varString
+	 * @returnthe <b>$set_up_name</b> attribute.
+	 * @example<b>PHPUnit::set_up_name</b>(<i>"set_up"</i>); sets the value of the attribute to <i>"set_up"</i> and the method will now return <i>"set_up"</i>.
 	 */
 	static function set_up_name($name=null) {
 		if($name != null) {
@@ -283,10 +310,11 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Returns the <b>$tear_down_name</b> attribute.
-	 * @param if a String parameter is sent the <b>$tear_down_name</b> attribute is set to that value.
-	 * @var String
-	 * @return the <b>$tear_down_name</b> attribute.
+	 * Get and set method of the static attribute <b>$tear_down_name</b>.
+	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
+	 * @paramif a String parameter is sent the <b>$tear_down_name</b> attribute is set to that value.
+	 * @varString
+	 * @returnthe <b>$tear_down_name</b> attribute.
 	 * @example <b>PHPUnit::tear_down_name</b>(<i>"tear_down"</i>); sets the value of the attribute to <i>"tear_down"</i> and the method will now return <i>"tear_down"</i>.
 	 */
 	static function tear_down_name($name=null) {
@@ -302,8 +330,8 @@ class PHPUnit {
 
 	/**
 	 * Runs the tests of all functions, classes and objects. Errors from failed test cases are added to the corresponding method or function.
-	 * @var bool
-	 * @return true if all tests passed, else false.
+	 * @varbool
+	 * @returntrue if all tests passed, else false.
 	 */
 	private static function test() {
 		foreach(PHPUnit::$classes as $class) {
@@ -342,10 +370,10 @@ class PHPUnit {
 	}
 
 	/**
-	 * Adds a function to the Class.
-	 * @param the name of the function that is to be added.
-	 * @var bool or PHPUnit\Test_Function.
-	 * @return false if the function doesn't exist else a test representation of the function.
+	 * Adds a function that is to be tested.
+	 * @param$name A string containing the name of the the function that is to be tested.
+	 * @varbool or PHPUnit\Test_Function.
+	 * @returnfalse if the function doesn't exist else a test representation of the function.
 	 */
 	static function add_function($name) {
 		if(function_exists($name)) {
@@ -365,10 +393,10 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Adds a class to the Class.
-	 * @param The name of the class that is to be tested.
-	 * @var bool or PHPUnit\Test_Object.
-	 * @return false if there is no class with the parameter name else a test representation of the Class.
+	 * Adds a class that is to be tested.
+	 * @param$class_name A String containing the name of the class that is to be tested.
+	 * @varbool or PHPUnit\Test_Object.
+	 * @returnfalse if there is no class with the parameter name else a test representation of the Class.
 	 */
 	static function add_class($class_name) {
 		if(class_exists($class_name)) {
@@ -385,10 +413,10 @@ class PHPUnit {
 	}
 
 	/**
-	 * Adds an object to the Class.
-	 * @param The object that is to be tested.
-	 * @var bool or PHPUnit\Test_Object.
-	 * @return false if the parameter isn't an object else a test representation of the Class.
+	 * Adds an object that is to be tested.
+	 * @paramThe object that is to be tested.
+	 * @varbool or PHPUnit\Test_Object.
+	 * @returnfalse if the parameter isn't an object else a test representation of the Class.
 	 */
 	static function add_object($object) {
 		if(is_object($object)) {
@@ -402,9 +430,9 @@ class PHPUnit {
 	/**
 	 * Adds an error to a function or method.
 	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
-	 * @param The error that is to be added.
-	 * @var bool.
-	 * @return true if the error was added succesfully, else false.
+	 * @param$error The error that is to be added.
+	 * @varbool
+	 * @returntrue if the error was added succesfully, else false.
 	 */
 	private static function current_add_error($error) {
 		if(PHPUnit::$current_object != null && $error->class == PHPUnit::$current_object->name) {
@@ -429,8 +457,8 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Called when an assertion passes.
-	 * <b>Side effect</b>: adds the function or class, object and/or method where the assertion was called to PHHUnit.
+	 * Called when an assertion passes.</br>
+	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
 	 */
 	static private function assertion_passed() {
 		$i = 1;
@@ -453,8 +481,8 @@ class PHPUnit {
 	}
 	
 	/**
-	 * Called when an assertion fails.
-	 * <b>Side effect</b>: adds the function or class, object and/or method where the assertion was called to PHHUnit.
+	 * Called when an assertion fails.</br>
+	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
 	 */
 	static private function assertion_failed() {
 		$i=1;
@@ -487,9 +515,9 @@ class PHPUnit {
 	
 	/**
 	 * Evaluates the parameter. If the parameter is evaluated to <i>true</i> the assertion passes else the assertion fails.
-	 * A failed assertion adds an error to the method or function to the function or method where the assertion was called. 
-	 * @param a bool that is to be evaluated.
-	 * <b>Side effect</b>: adds the function or class, object and/or method where the assertion was called to PHHUnit.
+	 * A failed assertion adds an error to the method or function to the function or method where the assertion was called.</br>
+	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit. 
+	 * @param$bool The bool that is to be evaluated.
 	 * @method Assertion
 	 * @var bool
 	 * @return true if the assertion passed, else false.
@@ -507,7 +535,7 @@ class PHPUnit {
 	/**
 	 * Evaluates the parameter. If the parameter is evaluated to <i>true</i> the assertion passes else the assertion fails.
 	 * A failed assertion adds an error to the method or function to the function or method where the assertion was called.
-	 * @param a bool that is to be evaluated.
+	 * @param $bool The bool that is to be evaluated.
 	 * <b>Side effect</b>: adds the function or class, object and/or method where the assertion was called to PHHUnit.
 	 * @method Assertion
 	 * @var bool

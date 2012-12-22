@@ -58,7 +58,8 @@ function foo() {
 function bar() {
 	PHPUnit::assert_false(true);
 }
-
+//Creates an anonymous function.
 $fun = function($string) {return is_string($string);};
+//Adds the previously created function to PHPUnit and is now callable as a static assertion function.
 PHPUnit::assert_string($fun);
 ?>

@@ -26,6 +26,7 @@ class class_test {
 	//This static method is called because the suffix is "_test" and the parameter isn't required.
 	static function third_test($var = 5) {
 		PHPunit::assert_true(true);
+		PHPUnit::assert_array_key_exists("hej",["hej"=>"ja"]);
 	}
 	//This method is not added, the method is prvate.
 	private function fourth_test($var = 5) {
@@ -33,7 +34,7 @@ class class_test {
 	}
 	//This method is not added automatically unless it has an assert method call and is called by an objct.
 	function test() {
-		PHPUnit::assert_true(true);
+		PHPUnit::assert_string("true");
 	}
 	//This method is the last one to be called, it is the tear_down/after method.
 	function tear_down() {
@@ -58,11 +59,6 @@ function bar() {
 	PHPUnit::assert_false(true);
 }
 
-$obj = new class_test();
-PHPUnit::add_object($obj); //Adds the object.
-
-PHPUnit::add_function("foo"); //Adds the function "foo"
-bar(); //Adds the function bar since it contains an assert method
-$obj_test = new class_test(); //Isn't added, objects arent currently added automatically.
-
+$fun = function($string) {return is_string($string);};
+PHPUnit::assert_string($fun);
 ?>

@@ -8,9 +8,9 @@
  * <b>PHPUnit</b>::attribute_name(<i>$desired_value</i>) </br>
  * note that not all attributes can be changed or returned.
  * @exampleCalling a method:</br><b>PHPUnit</b>::method_name(<i>$parameter</i>);
- * @exampleAdding a class to PHPUnit:</br><b>PHPUnit</b>::add_class(<i>"Class_Name"</i>);
- * @exampleAdding an object to PHPUnit:</br><b>PHPUnit</b>::add_object(new Class_Name());
- * @exampleAdding a function to PHPUnit:</br><b>PHPUnit</b>::add_function(<i>"function_name"</i>);
+ * @exampleAdding a class to PHPUnit:</br><b>PHPUnit</b>::add_return_class(<i>"Class_Name"</i>);
+ * @exampleAdding an object to PHPUnit:</br><b>PHPUnit</b>::add_return_object(new Class_Name());
+ * @exampleAdding a function to PHPUnit:</br><b>PHPUnit</b>::add_return_function(<i>"function_name"</i>);
  * @tutorialif attributes have the values:</br>
  * <i>class_suffix</i>="_test"</br>
  * <i>function_suffix</i>="_test"</br>
@@ -59,12 +59,17 @@ class PHPUnit {
 	 */
 	private static $classes = array();
 	/**
+	 * The class that is currently being tested.
+	 * @var\PHPUnit\Test_Class
+	 */
+	private static $current_class = null;
+	/**
 	 * An array holding all objects that are, or has been, to be tested.
 	 * @vararray()
 	 */
 	private static $objects = array();
 	/**
-	 * The Object or class that is currently being tested.
+	 * The object that is currently being tested.
 	 * @var\PHPUnit\Test_Object
 	 */
 	private static $current_object = null;
@@ -106,6 +111,13 @@ class PHPUnit {
 	 * @varint   
 	 */
 	private static $time = 0;
+	/**
+	 * Stores all defined assertion methods that are callable.
+	 * @varfunction[]
+	 */
+	private static $assertion_methods = array();
+
+	private static $destroyed = false;
 
 	/**
 	 * Constructor of the PHPUnit class.
@@ -118,19 +130,22 @@ class PHPUnit {
 	 * The method also ouputs data about the tests to the std_out stream.
 	 */
 	function __destruct() {
-		$functions = get_defined_functions();
-		foreach($functions['user'] as $function) {
-			if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
-				PHPUnit::add_function("\\".$function);
-			} 
+		if(PHPUnit::$destroyed == false) {
+			PHPUnit::$destroyed = true;
+			$functions = get_defined_functions();
+			foreach($functions['user'] as $function) {
+				if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
+					PHPUnit::add_return_function("\\".$function);
+				} 
+			}
+			foreach(get_declared_classes() as $class) {
+				if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
+					PHPUnit::add_return_class($class);
+				} 
+			}
+			PHPUnit::test();
+			echo PHPUnit::toString();
 		}
-		foreach(get_declared_classes() as $class) {
-			if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
-				PHPUnit::add_class($class);
-			} 
-		}
-		PHPUnit::test();
-		echo PHPUnit::toString();
 	}
 	
 	/**
@@ -214,7 +229,23 @@ class PHPUnit {
 			throw new \Exception("Access to undeclared static property ".__CLASS__."::".$name.'.');
 		}
 	}
-
+	static function __callStatic($name, $arguments) {
+		if(count($arguments) == 1 && ((is_string($arguments[0]) && function_exists($arguments[0])) || (is_object($arguments[0]) && ($arguments[0] instanceof Closure)))) {
+			$temp_arr = [$name=>$arguments[0]];
+			PHPUnit::$assertion_methods = array_merge(PHPUnit::$assertion_methods,$temp_arr);
+			return isset(PHPUnit::$assertion_methods[$name]) && PHPUnit::$assertion_methods[$name] == $arguments[0];
+		} elseif(isset(PHPUnit::$assertion_methods[$name])) {
+			$bool = call_user_func_array(PHPUnit::$assertion_methods[$name],$arguments);
+			if(is_bool($bool) && $bool) {
+				PHPUnit::assertion_passed();
+			} else {
+				PHPUnit::assertion_failed();
+			}
+			return $bool;
+		} else {
+			throw new Exception("The assertion method '$name' is not defined.");
+		}
+	}
 	/**
 	 * Get and set method of the static attribute <b>$function_suffix</b>.
 	 * Changes the value of the attribute to the input String parameter if given. Always returns the  attribute.
@@ -375,7 +406,7 @@ class PHPUnit {
 	 * @varbool or PHPUnit\Test_Function.
 	 * @returnfalse if the function doesn't exist else a test representation of the function.
 	 */
-	static function add_function($name) {
+	private static function add_return_function($name) {
 		if(function_exists($name)) {
 			foreach(PHPUnit::$functions as $function){
 				if($function->name == $name) {
@@ -392,13 +423,17 @@ class PHPUnit {
 		return false;
 	}
 	
+	static function add_function($name) {
+		return PHPUnit::add_return_function($name) !== false;
+	}
+
 	/**
 	 * Adds a class that is to be tested.
 	 * @param$class_name A String containing the name of the class that is to be tested.
 	 * @varbool or PHPUnit\Test_Object.
 	 * @returnfalse if there is no class with the parameter name else a test representation of the Class.
 	 */
-	static function add_class($class_name) {
+	private static function add_return_class($class_name) {
 		if(class_exists($class_name)) {
 			foreach(PHPUnit::$classes as $class) {
 				if($class->name == $class_name) {
@@ -412,13 +447,17 @@ class PHPUnit {
 		return false;
 	}
 
+	static function add_class($class_name) {
+		return PHPUnit::add_return_class($class_name) !== false;
+	}
+
 	/**
 	 * Adds an object that is to be tested.
 	 * @paramThe object that is to be tested.
 	 * @varbool or PHPUnit\Test_Object.
 	 * @returnfalse if the parameter isn't an object else a test representation of the Class.
 	 */
-	static function add_object($object) {
+	static function add_return_object($object) {
 		if(is_object($object)) {
 			$test_object = new PHPUnit\Test_Object($object);
 			PHPUnit::$objects[] = $test_object;
@@ -427,6 +466,10 @@ class PHPUnit {
 		return false;
 	}
 	
+	static function add_object($object) {
+		return PHPUnit::add_return_object($object) !== false;
+	}
+
 	/**
 	 * Adds an error to a function or method.
 	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
@@ -445,12 +488,11 @@ class PHPUnit {
 			}
 		}
 		if(isset($error->class)) {
-			echo var_dump($error);
-			$test_instance = PHPUnit::add_class($error->class);
+			$test_instance = PHPUnit::add_return_class($error->class);
 			$test_instance->add_method($error->caller,false);
 		} else {
 			$caller = $error->caller;
-			$test_instance = PHPUnit::add_function($caller);
+			$test_instance = PHPUnit::add_return_function($caller);
 			$test_instance->run_test = false;
 		}
 		return $test_instance->add_error($error, true);
@@ -470,10 +512,10 @@ class PHPUnit {
 				(PHPUnit::$current_function != null && $caller["function"] == PHPUnit::$current_function->name)) {
 				
 				if(isset($caller['class'])) {
-					$class = PHPUnit::add_class($caller['class']);
+					$class = PHPUnit::add_return_class($caller['class']);
 					$class->add_method($caller['function'],false);
 				} else {
-					$function = PHPUnit::add_function($caller['function']);
+					$function = PHPUnit::add_return_function($caller['function']);
 					$function->run_test = false;
 				}
 			}
@@ -485,7 +527,7 @@ class PHPUnit {
 	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
 	 */
 	static private function assertion_failed() {
-		$i=1;
+		$i=2;
 		$debug_backtrace = debug_backtrace();
 		$error=$debug_backtrace[$i];
 		if(isset($debug_backtrace[$i+1])) {
@@ -512,49 +554,16 @@ class PHPUnit {
 		$error = new PHPUnit\Error($error);
 		PHPUnit::current_add_error($error);
 	}
-	
-	/**
-	 * Evaluates the parameter. If the parameter is evaluated to <i>true</i> the assertion passes else the assertion fails.
-	 * A failed assertion adds an error to the method or function to the function or method where the assertion was called.</br>
-	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit. 
-	 * @param$bool The bool that is to be evaluated.
-	 * @method Assertion
-	 * @var bool
-	 * @return true if the assertion passed, else false.
-	 */
-	static function assert_true($bool) {
-		if($bool === false) {
-			PHPUnit::assertion_failed();
-			return true;
-		} else {
-			PHPUnit::assertion_passed();
-			return false;
-		}
-	}
-	
-	/**
-	 * Evaluates the parameter. If the parameter is evaluated to <i>true</i> the assertion passes else the assertion fails.
-	 * A failed assertion adds an error to the method or function to the function or method where the assertion was called.
-	 * @param $bool The bool that is to be evaluated.
-	 * <b>Side effect</b>: adds the function or class, object and/or method where the assertion was called to PHHUnit.
-	 * @method Assertion
-	 * @var bool
-	 * @return true if the assertion passed, else false.
-	 */
-	static function assert_false($bool) {
-		if($bool === true) {
-			PHPUnit::assertion_failed();
-			return true;
-		} else {
-			PHPUnit::assertion_passed();
-			return false;
-		}
-	}
 }
 if(file_exists(dirname(__FILE__)."/PHPUnit/Test_Instance.php")) {
 	include dirname(__FILE__)."/PHPUnit/Test_Instance.php";
 } elseif(file_exists(dirname(__FILE__)."\PHPUnit\Test_Instance.php")) {
 	include dirname(__FILE__)."\PHPUnit\Test_Instance.php";
+}
+if(file_exists(dirname(__FILE__)."/PHPUnit/assertion_methods.php")) {
+	include dirname(__FILE__)."/PHPUnit/assertion_methods.php";
+} elseif(file_exists(dirname(__FILE__)."\PHPUnit\assertion_methods.php")) {
+	include dirname(__FILE__)."\PHPUnit\assertion_methods.php";
 }
 $PHPUnit = new PHPUnit();
 ?>

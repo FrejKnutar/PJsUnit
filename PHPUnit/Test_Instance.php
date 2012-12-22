@@ -109,13 +109,7 @@ class Error {
 		$array["type"] = $this->type;
 		$array["arguments"] = array();
 		foreach($this->arguments as $arg) {
-			if($arg == true) {
-				$array["arguments"][] = "true";
-			} elseif($arg == false) {
-				$array["arguments"][] = "false";
-			} else {
-				$array["arguments"][] = $arg;
-			}
+			$array["arguments"][] = print_r($arg,true);
 		}
 		$array["passed"] = $this->passed;
 		$array["caller"] = $this->caller;
@@ -199,12 +193,12 @@ abstract class Test_Instance {
 
 class Test_Object extends Test_Instance {
 	protected $type = "Object";
-
-	private $object = null;
-	private $passed_count	= 0;
-	private $methods = array();
-	private $current_method = null;
-	private $was_timed = false;
+	protected $class = null;
+	protected $object = null;
+	protected $passed_count	= 0;
+	protected $methods = array();
+	protected $current_method = null;
+	protected $was_timed = false;
 	
 	function __get($name) {
 		if(property_exists(__CLASS__, $name)) {
@@ -225,15 +219,17 @@ class Test_Object extends Test_Instance {
 		return false;
 	}
 
-	function __construct($test_object, $is_class = false) {
+	function __construct($test_object,$object_name = null) {
 		if(!is_object($test_object)) {
-			throw new \Exception("Parameter is not an object.");
-		}
-		if($is_class) {
-			$this->type = "Class";
+			throw new \Exception("Input parameter \$test_object is not an object");
 		}
 		$this->object = $test_object;
-		$this->name = get_class($test_object);
+		$this->class = get_class($test_object);
+		if($object_name != null && is_string($object_name)) {
+			$this->name = $object_name;
+		} else {
+			$this->name = $this->class;
+		}
 		$method_suffix = \PHPUnit::method_suffix();
 		$methods = get_class_methods($test_object);
 		$temp_methods = array();
@@ -329,7 +325,26 @@ class Test_Object extends Test_Instance {
 		$this->time = microtime(true) - $time;
 		return $this->passed;
 	}
-	
+	public function obj_equals($obj) {
+		return $obj === $this->object;
+	}
+}
+
+class Test_Class extends Test_Object {
+	protected $type = "Class";
+	function __construct($class_name) {
+		if(class_exists(!$class_name)) {
+			throw new \Exception("The class '$class_name' does not exist.");
+		}
+		if(method_exists($this->name, "__construct")) {
+			$construct = new \ReflectionMethod($this->name,"__construct");
+			if($construct->getNumberOfRequiredParameters() != 0) {
+				throw new \Exception("The constructor of class '$class_name' requires parameters.");
+			}
+		}
+		$object = new $class_name();
+		parent::__construct($object);
+	}
 }
 
 class Test_Function extends Test_Instance {

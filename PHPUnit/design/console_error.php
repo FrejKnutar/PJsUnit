@@ -12,9 +12,9 @@ $string = "      File: ".$file.PHP_EOL;
 $string .= "      Row: ".$row.PHP_EOL;
 $string .= '      Line: "'.$line.'"'.PHP_EOL;
 $string .= "      Function: ".$function.'(';
-for($i=count($arguments)-1;$i>=0;$i--) {
+for($i=0;$i<count($arguments);$i++) {
 	$string .= $arguments[$i];
-	if($i>0) {
+	if($i<count($arguments)-1) {
 		$string .=', ';
 	}
 }

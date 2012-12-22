@@ -503,7 +503,7 @@ class PHPUnit {
 	 * <b>Side effect</b>: adds the function or class, object and/or method where the error was encountered to PHHUnit.
 	 */
 	static private function assertion_passed() {
-		$i = 1;
+		$i = 2;
 		$debug_backtrace = debug_backtrace();
 		if(isset($debug_backtrace[$i+1])) {
 			$caller = $debug_backtrace[$i+1];

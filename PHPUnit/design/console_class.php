@@ -9,7 +9,7 @@ $name			The function name
 $time			The time it took to run the function.
 $file			The file that the object is located in.
 */
-$string = $type.": ".$name."()";
+$string = "  ".$type.": ".$name."()";
 if($passed) {
 	$string.= " PASSED";
 	if($time > 0) {

@@ -8,7 +8,7 @@ $type 		The type (function)
 $name			The function name
 $time			The time it took to run the function.
 */
-$string = $type.": ".$name."()";
+$string = "  ".$type.": ".$name."()";
 	if($passed) {
 		$string.= " PASSED";
 		if($time > 0) {

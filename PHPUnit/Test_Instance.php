@@ -62,39 +62,33 @@ function include_extract($path,$array = array()) {
 }
 
 class Error {
-	private $file;
-	private $row;
-	private $line;
-	private $function;
-	private $class;
-	private $type;
+	private $file = null;
+	private $row = null;
+	private $line = null;
+	private $function = null;
 	private $arguments = array();
-	private $passed;
-	private $caller;
+	private $passed = null;
+	private $caller = null;
+	private $class = null;
+	private $type = null;
 	
 	function __construct($error) {
 		$this->file = $error["file"];
 		$this->row = (int) $error["line"];
 		$this->function = $error["function"];
+		$this->arguments = $error["args"];
+		$this->passed = $error["passed"];
+		$file = file($this->file);
+		$this->line = trim($file[$this->row-1]);
+		if(isset($error["caller"])) {
+			$this->caller = $error["caller"];
+		}
 		if(isset($error["class"])) {
 			$this->class = $error["class"];
-		} else {
-			$this->class = null;
 		}
 		if(isset($error["type"])) {
 			$this->type = $error["type"];
-		} else {
-			$this->type = null;
 		}
-		$this->arguments = $error["args"];
-		$this->passed = $error["passed"];
-		if(isset($error["caller"])) {
-			$this->caller = $error["caller"];
-		} else {
-			$this->caller = null;
-		}
-		$file = file($this->file);
-		$this->line = trim($file[$this->row-1]);
 	}
 	
 	function __toString() {
@@ -270,7 +264,7 @@ class Test_Object extends Test_Instance {
 	}
 
 	function add_method($method,$run_test) {
-		if(method_exists($this->object, $method)) {
+		if($this->object == null || method_exists($this->object, $method)) {
 			$method = new Test_Method($this->object, $method);
 			$method->run_test = false;
 			$this->methods[] = $method;
@@ -283,7 +277,7 @@ class Test_Object extends Test_Instance {
 				$method = $this->current_method;
 			} else {
 				foreach($this->methods as $m) {
-					if($m->name() ==  $error->name) {
+					if($m->name ==  $error->caller) {
 						$method = $m;
 						break;
 					}
@@ -332,25 +326,30 @@ class Test_Object extends Test_Instance {
 
 class Test_Class extends Test_Object {
 	protected $type = "Class";
-	function __construct($class_name) {
+	function __construct($class_name, $run_test) {
 		if(class_exists(!$class_name)) {
 			throw new \Exception("The class '$class_name' does not exist.");
 		}
-		if(method_exists($this->name, "__construct")) {
-			$construct = new \ReflectionMethod($this->name,"__construct");
-			if($construct->getNumberOfRequiredParameters() != 0) {
-				throw new \Exception("The constructor of class '$class_name' requires parameters.");
+		if($run_test === true) {
+			if(method_exists($this->name, "__construct")) {
+				$construct = new \ReflectionMethod($this->name,"__construct");
+				if($construct->getNumberOfRequiredParameters() != 0) {
+					throw new \Exception("The constructor of class '$class_name' requires parameters.");
+				}
 			}
+			$object = new $class_name();
+			parent::__construct($object);
+		} else {
+			$this->class = $class_name;
+			$this->name = $class_name;
 		}
-		$object = new $class_name();
-		parent::__construct($object);
 	}
 }
 
 class Test_Function extends Test_Instance {
 	protected $errors = array();
 	protected $type = "Function";
-	
+
 	function __construct($function) {
 		if(function_exists($function)) {
 			$this->name = $function;
@@ -385,7 +384,7 @@ class Test_Method extends Test_Function {
 	private $test_object = null;
 	
 	function __construct($test_object,$method) {
-		if(method_exists($test_object, $method)) {
+		if($test_object == null || method_exists($test_object, $method)) {
 			$this->name = $method;
 			$this->test_object = $test_object;
 			$this->type = "Method";
@@ -395,12 +394,12 @@ class Test_Method extends Test_Function {
 	}
 	
 	function test($run_test = true) {
-		$method = $this->name;
-		$start = microtime(true);
 		if($this->run_test && $run_test) {
+			$method = $this->name;
+			$start = microtime(true);
 			$this->test_object->$method();
+			$this->time = microtime(true) - $start;
 		}
-		$this->time = microtime(true) - $start;
 		return $this->passed;
 	}
 }

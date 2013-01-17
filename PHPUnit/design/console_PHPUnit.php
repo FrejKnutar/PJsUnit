@@ -35,7 +35,7 @@ if(count($objects)>0) {
 	$string .= "Objects: ".count($objects).PHP_EOL;
 }
 if(count($classes)>0) {
-	$string .= "classes: ".count($classes).PHP_EOL;
+	$string .= "Classes: ".count($classes).PHP_EOL;
 }
 $string .= "Passed: ".$passed_count.' ('.($tests>0 ? ((string) ($passed_count/$tests*100).'%') : 'NA').")".PHP_EOL;
 $string .= "Failed: ".$failed_count.' ('.($tests>0 ? ((string) ($failed_count/$tests*100).'%') : 'NA').")".PHP_EOL;

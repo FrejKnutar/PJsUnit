@@ -42,6 +42,16 @@ class class_test {
 	}
 }
 
+class Obj {
+	private $var;
+	function __construct($var) {
+		$this->var = $var;
+	}
+	function test() {
+		PHPUnit::assert_true(false);
+	}
+}
+
 //This function is added automatically because the suffix is "_test" and the parameter isn't required.
 function function_test($var = 5) {
 	PHPUnit::assert_true(true);
@@ -62,4 +72,11 @@ function bar() {
 $fun = function($string) {return is_string($string);};
 //Adds the previously created function to PHPUnit and is now callable as a static assertion function.
 PHPUnit::assert_string($fun);
+
+$obj = new class_test();
+$obj->test();
+PHPUnit::add_object($obj);
+PHPUnit::add_object($obj);
+$obj2 = new Obj(5);
+$obj2->test();
 ?>

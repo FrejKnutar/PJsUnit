@@ -135,12 +135,12 @@ class PHPUnit {
 			$functions = get_defined_functions();
 			foreach($functions['user'] as $function) {
 				if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
-					PHPUnit::add_return_function("\\".$function);
+					PHPUnit::add_function("\\".$function);
 				} 
 			}
 			foreach(get_declared_classes() as $class) {
 				if(substr($class, - \strlen(PHPUnit::$class_suffix)) == PHPUnit::$class_suffix) {
-					PHPUnit::add_return_class($class);
+					PHPUnit::add_class($class);
 				} 
 			}
 			PHPUnit::test();
@@ -235,15 +235,22 @@ class PHPUnit {
 			PHPUnit::$assertion_methods = array_merge(PHPUnit::$assertion_methods,$temp_arr);
 			return isset(PHPUnit::$assertion_methods[$name]) && PHPUnit::$assertion_methods[$name] == $arguments[0];
 		} elseif(isset(PHPUnit::$assertion_methods[$name])) {
+			$reflection = new ReflectionFunction(PHPUnit::$assertion_methods[$name]);
+			if($reflection->getNumberOfParameters() == count($arguments) -1) {
+				$message = $arguments[count($arguments)-1];
+				array_splice($arguments, count($arguments)-1,1);
+			}
 			$bool = call_user_func_array(PHPUnit::$assertion_methods[$name],$arguments);
 			if(is_bool($bool) && $bool) {
 				PHPUnit::assertion_passed();
+			} elseif(isset($message)) {
+				PHPUnit::assertion_failed($message);
 			} else {
 				PHPUnit::assertion_failed();
 			}
 			return $bool;
 		} else {
-			throw new Exception("The assertion method '$name' is not defined.");
+			throw new Exception("The method ".__CLASS__."::$name()' is not defined.");
 		}
 	}
 	/**
@@ -433,14 +440,14 @@ class PHPUnit {
 	 * @varbool or PHPUnit\Test_Object.
 	 * @returnfalse if there is no class with the parameter name else a test representation of the Class.
 	 */
-	private static function add_return_class($class_name) {
+	private static function add_return_class($class_name,$run_test) {
 		if(class_exists($class_name)) {
 			foreach(PHPUnit::$classes as $class) {
 				if($class->name == $class_name) {
 					return $class;
 				}
 			}
-			$class = new PHPUnit\Test_Object(new $class_name,true);
+			$class = new PHPUnit\Test_Class($class_name,$run_test);
 			PHPUnit::$classes[] = $class;
 			return $class;
 		}
@@ -448,7 +455,7 @@ class PHPUnit {
 	}
 
 	static function add_class($class_name) {
-		return PHPUnit::add_return_class($class_name) !== false;
+		return PHPUnit::add_return_class($class_name,true) !== false;
 	}
 
 	/**
@@ -459,6 +466,11 @@ class PHPUnit {
 	 */
 	static function add_return_object($object) {
 		if(is_object($object)) {
+			foreach(PHPUnit::$objects as $obj) {
+				if($obj->obj_equals($object)) {
+					return $obj;
+				}
+			}
 			$test_object = new PHPUnit\Test_Object($object);
 			PHPUnit::$objects[] = $test_object;
 			return $test_object;
@@ -487,8 +499,8 @@ class PHPUnit {
 				return PHPUnit::$current_function->add_error($error, true);
 			}
 		}
-		if(isset($error->class)) {
-			$test_instance = PHPUnit::add_return_class($error->class);
+		if($error->class != null) {
+			$test_instance = PHPUnit::add_return_class($error->class,false);
 			$test_instance->add_method($error->caller,false);
 		} else {
 			$caller = $error->caller;
@@ -508,11 +520,11 @@ class PHPUnit {
 		if(isset($debug_backtrace[$i+1])) {
 			$caller = $debug_backtrace[$i+1];
 			if((PHPUnit::$current_object == null && PHPUnit::$current_function == null) ||
-				(PHPUnit::$current_object != null && isset($caller["class"]) && $caller["class"] != PHPUnit::$current_object->name) || 
-				(PHPUnit::$current_function != null && $caller["function"] == PHPUnit::$current_function->name)) {
+				(PHPUnit::$current_object != null && isset($caller["class"]) && $caller["class"] != PHPUnit::$current_object->class) || 
+				(PHPUnit::$current_function != null && $caller["function"] != PHPUnit::$current_function->name)) {
 				
 				if(isset($caller['class'])) {
-					$class = PHPUnit::add_return_class($caller['class']);
+					$class = PHPUnit::add_return_class($caller['class'],false);
 					$class->add_method($caller['function'],false);
 				} else {
 					$function = PHPUnit::add_return_function($caller['function']);

@@ -116,22 +116,34 @@ class PHPUnit {
 	 * @varfunction[]
 	 */
 	private static $assertion_methods = array();
+	/**
+	 * Stores the number of constructed PHPUnit objects.
+	 * @varint
+	 */
+	private static $instance_count = 0;
 
-	private static $destroyed = false;
-
+	private static $ini_file = "PHPUnit/PHPUnit.ini";
 	/**
 	 * Constructor of the PHPUnit class.
 	 */
-	function __construct() {}
+	function __construct() {
+		if(PHPUnit::$instance_count == 0) {
+			if (file_exists(dirname(__FILE__).'/'.PHPUnit::$ini_file)) {
+				PHPUnit::parse_ini_file(dirname(__FILE__).'/'.PHPUnit::$ini_file);
+			}
+		}
+		PHPUnit::$instance_count++;
+	}
 	
+
 	/**
 	 * Destructor of the PHPUnit class. This will run every time a PHPUnit object is destroyed, even when shutting down.
 	 * This method automatically adds classes and functions to the static variables and run the tests that are to be tested.
 	 * The method also ouputs data about the tests to the std_out stream.
 	 */
 	function __destruct() {
-		if(PHPUnit::$destroyed == false) {
-			PHPUnit::$destroyed = true;
+		PHPUnit::$instance_count--;
+		if(PHPUnit::$instance_count == 0) {
 			$functions = get_defined_functions();
 			foreach($functions['user'] as $function) {
 				if(substr($function, - \strlen(PHPUnit::$function_suffix)) == PHPUnit::$function_suffix) {
@@ -365,7 +377,38 @@ class PHPUnit {
 		}
 		return PHPUnit::$tear_down_name;	
 	}
-
+	static function parse_ini_file($file) {
+		if(file_exists($file)) {
+			$sections = parse_ini_file($file,true);
+			$class_str = "class";
+			$method_str = "method";
+			$function_str = "function";
+			foreach($sections as $sec => $tuple) {
+				$sec = strtolower($sec);
+				$generic = $sec == "phpunit";
+				foreach($tuple as $method => $value) {
+					switch(strtolower($method)) {
+						case "suffix":
+							if($generic || $sec == $class_str) PHPUnit::class_suffix($value);
+							if($generic || $sec == $method_str) PHPUnit::method_suffix($value);
+							if($generic || $sec == $function_str) PHPUnit::function_suffix($value);
+							break;
+						case "prefix":
+							if($generic) PHPUnit::design_prefix($value);
+							break;
+						case "build_up_name":
+							if($sec != $function_str) PHPUnit::build_up_name($value);
+							break;
+						case "tear_down_name":
+							if($sec != $function_str) PHPUnit::tear_down_name($value);
+							break;
+					}
+				}
+			}
+		} else {
+			throw Exception("File \"$file\" not fount.");
+		}
+	}
 	/**
 	 * Runs the tests of all functions, classes and objects. Errors from failed test cases are added to the corresponding method or function.
 	 * @varbool

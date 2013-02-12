@@ -12,6 +12,7 @@ class class_test {
 
 	//This method is called first, it is the set_up/before method
 	function set_up() {
+		echo("set-up");
 		$var = 10;
 	}
 

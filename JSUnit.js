@@ -1,19 +1,18 @@
 if(typeof(JSUnit) == 'undefined') {
 	var JSUnit = (function () {
 		var echo = (console && console.log) ? console.log : print;
-		var _failed_count = 0;
-		var _passed_count = 0;
+		var _failedCount = 0;
+		var _passedCount = 0;
 		var _passed = true;
 		var _functions = [];
-		var _classes = [];
 		var _objects = [];
-		var _current_function,_current_object,_current_object;
-		var _function_suffix = "_test";
-		var _class_suffix = "_test";
-		var _method_suffix = "_test";
-		var _design_prefix = "console";
-		var _set_up_name = "set_up";
-		var _tear_down_name = "tear_down";
+		var _currentFunction = null
+                var _currentObject = null;
+		var _functionSuffix = "_test";
+		var _classSuffix = "_test";
+		var _methodSuffix = "_test";
+		var _setUpName = "set_up";
+		var _tearDownName = "tear_down";
 		var _fbold = 'font-weight:bold;';
 		var _fitalic = 'font-style:italic;';
 		var _fnormal = 'font-weight:normal;font-style:normal;';
@@ -26,9 +25,9 @@ if(typeof(JSUnit) == 'undefined') {
 		var _cstring = _red + _fnormal;
 		var _cnumber = _teal + _fnormal;
 		var _carray = _teal + _fbold;
-		var _vobject = _teal + _fbold;
+		var _cobject = _teal + _fbold;
 
-		var _error_to_string = function() {
+		var _errorToString = function() {
 			var argarray = [null];
 			var argstr = '(';
 			console.log(this);
@@ -78,40 +77,43 @@ if(typeof(JSUnit) == 'undefined') {
 			echo.apply(null, argarray);
 		}
 
-		var Test_Error = function(assertion, callee, args) {
-			var self = this;
+		var TestError = function(assertion, callee, args) {
 			var _assertion = assertion;
 			var _callee = callee;
 			var _args = args;
 
-			var get_assertion = function() {return _assertion;};
-			var get_callee = function() {return _callee;};
-			var get_args = function() {return _args;};
-			var to_string = function() {
-				return _error_to_string.apply({assertion: get_assertion, callee: get_callee, args: get_args});
+			var getAssertion = function() {return _assertion;};
+			var getCallee = function() {return _callee;};
+			var getArgs = function() {return _args;};
+			var toString = function() {
+				return _errorToString.apply({assertion: getAssertion, callee: getCallee, args: getArgs});
 			}
 			return {
-				assertion: get_assertion,
-				callee: get_callee,
-				args: get_args,
-				toString: to_string()
+				assertion: getAssertion,
+				callee: getCallee,
+				args: getArgs,
+				toString: toString
 			};
 		}
-		var Test_Method = function(method, name) {
+		var TestMethod = function(method, name) {
 			var _method = method;
 			var _name = name;
+                        var _passed = true;
 			var _errors = [];
 			var _time = 0;
 			
-			var get_method = function() {
+			var getMethod = function() {
 				return _method;
 			}
 
-			var get_name = function() {
+			var getName = function() {
 				return _name;
 			}
-			
-			var add_error = function(error) {
+			var passed = function() {
+                            return _passed;
+                        }
+			var addError = function(error) {
+                                _passed = false;
 				_errors.push(error);
 			}
 
@@ -123,23 +125,24 @@ if(typeof(JSUnit) == 'undefined') {
 				}
 				throw "Bad argument. integer expected but \"" + typeof(time) + "\" given ";
 			}
-			var to_string = function() {
+			var toString = function() {
 				var error_strings = [];
 				_errors.map(function (error) {
 					error_string.push(error.toString);
 				});
-				return _method_to_string.apply(this,[_name,error_strings]);
+				return _method_toString.apply(this,[_name,error_strings]);
 			}
 			return {
-				method: get_method,
-				name: get_name,
-				addError: add_error,
+				method: getMethod,
+				name: getName,
+                                passed: passed,
+				addError: addError,
 				time: time,
-				toString: to_string
+				toString: toString
 			};
 		}
 
-		var Test_Event = function(fun) {
+		var TestEvent = function(fun) {
 			if(typeof(fun) != "function") {
 				throw "Function Event requires the parameter to be a function";
 			}
@@ -165,61 +168,69 @@ if(typeof(JSUnit) == 'undefined') {
 			};
 		}
 
-		var Test_Object = function(obj,name) {
+		var TestObject = function(obj,name) {
 			var _name = name;
 			var _methods = [];
 			var _obj = null;
-			var _current_method = null;
-			var _was_timed = false;
+			var _currentMethod = null;
+			var _wasTimed = false;
 			var _time = 0;
+                        var _passed = true;
+                        
 			var construct = function(obj) {
 				_obj = obj;
-				if(typeof(obj[_set_up_name]) == "function") {
-					_methods.push(new Test_Method(obj[_set_up_name],_set_up_name));
+				if(typeof(obj[_setUpName]) == "function") {
+					_methods.push(new TestMethod(obj[_setUpName],_setUpName));
 				}
 				for (method in obj) {
-					if(typeof(obj[method]) == "function" && method.length >= _method_suffix.length && method.substr(-_method_suffix.length) == _method_suffix) {
-						_methods.push(new Test_Method(obj[method],method));
+					if(typeof(obj[method]) == "function" && method.length >= _methodSuffix.length && method.substr(-_methodSuffix.length) == _methodSuffix) {
+						_methods.push(new TestMethod(obj[method],method));
 					}
 				}
-				if(typeof(obj[_tear_down_name]) == "function") {
-					_methods.push(new Test_Method(obj[_tear_down_name],_tear_down_name));
+				if(typeof(obj[_tearDownName]) == "function") {
+					_methods.push(new TestMethod(obj[_tearDownName],_tearDownName));
 				}
 			}
-			var test = function(run_test) {
+			var test = function(runTest) {
 				var time;
 				var totalTime = 0;
-				if(typeof(run_test) == "undefined") run_test = true;
+				if(typeof(runTest) == "undefined") runTest = true;
 				_methods.map(function(method) {
-					_current_method = method;
+					_currentMethod = method;
 					time = new Date().getTime();
-					_current_method.method().apply(_obj,[]);
-					//eval("_obj" + _current_method.name() + "();");
+					_currentMethod.method().apply(_obj,[]);
+					//eval("_obj" + _currentMethod.name() + "();");
 					time = new Date().getTime() - time;
-					_current_method.time(time);
+					_currentMethod.time(time);
 					totalTime+=time;
 				});
 				_time=totalTime;
+                                return _passed;
 			}
-			var name = function() {
+			var getName = function() {
 				return _name;
 			}
-			var current_method_name = function() {
-				if(typeof(_current_method) != "undefined" && _current_method != null) {
-					return _current_method.name();
+                        var passed = function() {
+                            return _passed;
+                        }
+			var currentMethodName = function() {
+				if(typeof(_currentMethod) != "undefined" && _currentMethod != null) {
+					return _currentMethod.name();
 				} else {
 					return null;
 				}
 			}
-			var add_error = function(error,method_name) {
+			var addError = function(error,method_name) {
 				var returnvar = false;
-				if(typeof(method_name) == "undefined" || method_name == current_method_name()) {
-					_current_method.addError(error)
+				if(typeof(method_name) == "undefined" || method_name == currentMethodName()) {
+					_currentMethod.addError(error)
+                                        _passed = false;
 					returnvar = true;
 				} else {
 					_methods.map(function(method) {
 						if(method.name() == method_name) {
 							method.addError(error);
+                                                        _passed = false;
 							returnvar = true;
 						}
 					});
@@ -229,54 +240,49 @@ if(typeof(JSUnit) == 'undefined') {
 			construct(obj);
 			return {
 				test: test,
-				name: name,
-				currentMethodName: current_method_name,
-				addError: add_error
+				name: getName,
+                                passed: passed,
+				currentMethodName: currentMethodName,
+				addError: addError
 			};
 		}
 
 		var time = 0;
-		var function_suffix = function(suffix) {
+		var functionSuffix = function(suffix) {
 			if(typeof(suffix) == "string") {
-				_function_suffix = suffix;
+				_functionSuffix = suffix;
 			}
-			return _function_suffix;
+			return _functionSuffix;
 		}
-		var class_suffix = function(suffix) {
+		var classSuffix = function(suffix) {
 			if(typeof(suffix) == "string") {
-				_class_suffix = suffix;
+				_classSuffix = suffix;
 			}
-			return _class_suffix;	
+			return _classSuffix;	
 		}
-		var method_suffix = function(suffix) {
+		var methodSuffix = function(suffix) {
 			if(typeof(suffix) == "string") {
-				_method_suffix = suffix;
+				_methodSuffix = suffix;
 			}
-			return _method_suffix;	
+			return _methodSuffix;	
 		}
-		var design_prefix = function(prefix) {
-			if(typeof(prefix) == "string") {
-				_design_prefix = prefix;
-			}
-			return _design_prefix;	
-		}
-		var set_up_name = function(name) {
+		var setUpName = function(name) {
 			if(typeof(name) == "string") {
-				_set_up_name = name;
+				_setUpName = name;
 			}
-			return _set_up_name;	
+			return _setUpName;	
 		}
-		var tear_down_name = function(name) {
+		var tearDownName = function(name) {
 			if(typeof(name) == "string") {
-				_tear_down_name = name;
+				_tearDownName = name;
 			}
-			return _tear_down_name;	
+			return _tearDownName;	
 		}
-		var add_object = function(obj) {
-			_objects.push(new Test_Object(obj));
+		var addObject = function(obj) {
+			_objects.push(new TestObject(obj));
 		}
 
-		var assertion_passed = function(assertion, callee, args) {
+		var assertionPassed = function(assertion, callee, args) {
 			var argarray = [null];
 			var argstr = '(';
 			if(args.length > 0) {
@@ -323,94 +329,101 @@ if(typeof(JSUnit) == 'undefined') {
 			}
 			echo.apply(null, argarray);
 		}
-		var assertion_failed = function(assertion, callee, args) {
+		var assertionFailed = function(assertion, callee, args) {
 			if(this == null) return;
-			this.addError(new Test_Error(assertion,callee,args));
+			this.addError(new TestError(assertion,callee,args));
 		}
-		var add_assertion = function(name,fun) {
-			var assert_fun = function() {
+		var addAssertion = function(name,fun) {
+			var assertFun = function() {
 				var callee;
 				var current = null;
 				var args = arguments;
 				var passed = fun.apply(null, arguments);
 				if(typeof(arguments.callee.caller.name) != "undefined" && arguments.callee.caller.name != "") {
-					if(typeof(current_function) != "undefined" && current_function.name() == arguments.callee.caller) {
-						callee = current_function.name();
-						current = current_function;
+					if(typeof(_currentFunction) != "undefined" && _currentFunction.name() == arguments.callee.caller) {
+						callee = _currentFunction.name();
+						current = _currentFunction;
 					} else {
 						callee = arguments.callee.caller.name;
 					}
 				} else {
-					if(current_object != null) {
-						callee = current_object.currentMethodName();
-						current = current_object;
+					if(_currentObject != null) {
+						callee = _currentObject .currentMethodName();
+						current = _currentObject ;
 					} else {
-						callee = current_function.name();
+						callee = _currentFunction.name();
 					}
 				}
 				if(passed === true) {
-					assertion_passed.apply(current, [name, callee, args]);
+					assertionPassed.apply(current, [name, callee, args]);
 				} else if(passed === false) {
-					assertion_failed.apply(current, [name, callee, args]);
+					assertionFailed.apply(current, [name, callee, args]);
 				}
 			};
-			eval("this."+name+'='+assert_fun);
+			this[name] = assertFun;
 		}
 
-		var add_event = function(name,fun) {
+		var addEvent = function(name,fun) {
 			var callee;
 			var current = null;
-			var event_fun = function() {
+			var eventFun = function() {
 				var args = arguments;
 					if(typeof(arguments.callee.caller.name) != "undefined" && arguments.callee.caller.name != "") {
-					if(typeof(current_function) && current_function.name() != "undefined" == arguments.callee.caller) {
-						callee = current_function.name();
-						current = current_function;
+					if(typeof(_currentFunction) && _currentFunction.name() != "undefined" == arguments.callee.caller) {
+						callee = _currentFunction.name();
+						current = _currentFunction;
 					} else {
 						callee = arguments.callee.caller.name;
 					}
 				} else {
-					if(current_object != null) {
-						callee = current_object.currentMethodName();
-						current = current_object;
+					if(_currentObject != null) {
+						callee = _currentObject.currentMethodName();
+						current = _currentObject;
 					} else {
-						callee = current_function.name();
+						callee = _currentFunction.name();
 					}
 				}
-				var eventListener = new Test_Event(function() {
+				var eventListener = new TestEvent(function() {
 					if(eventListener.value() === true) {
-						assertion_passed.apply(current, [name, callee, args]);
+						assertionPassed.apply(current, [name, callee, args]);
 					} else if(eventListener.value() === false) {
-						assertion_failed.apply(current, [name, callee, args]);
+						assertionFailed.apply(current, [name, callee, args]);
 					}
 				});
 			fun.apply(eventListener, arguments);
 			}
-		eval("this."+name+'='+event_fun);	
+		this[name] = eventFun;
 		}
-		var test = function(run_test) {
-			if(typeof(run_test) == "undefined") run_test = true;
+		var test = function(runTest) {
+			if(typeof(runTest) == "undefined") runTest = true;
 			_objects.map(function(obj) {
-				current_object = obj;
-				obj.test(run_test);
+				_currentObject = obj;
+				if(obj.test(runTest)) {
+                                    _passedCount++;
+                                } else {
+                                    _failedCount++;
+                                }
 			});
-			current_object = null;
+			_currentObject = null;
 			_functions.map(function(fun) {
-				current_function = fun;
-				fun.test(run_test);
+				_currentFunction = fun;
+				if(fun.test(runTest)) {
+                                    _passedCount++;
+                                } else {
+                                    _failedCount++;
+                                }
 			});
-			current_function = null;
+			_currentFunction = null;
 		}
 		return {
-			functionSuffix: function_suffix,
-			classSuffix: class_suffix,
-			methodSuffix: method_suffix,
-			designPrefix: design_prefix,
-			setUpName: set_up_name,
-			tearDownName: tear_down_name,
-			addAssertion: add_assertion,
-			addEvent: add_event,
-			addObject: add_object,
+			functionSuffix: functionSuffix,
+			classSuffix: classSuffix,
+			methodSuffix: methodSuffix,
+			setUpName: setUpName,
+			tearDownName: tearDownName,
+			addAssertion: addAssertion,
+			addEvent: addEvent,
+			addObject: addObject,
 			test: test
 		}
 	})();

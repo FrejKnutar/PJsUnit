@@ -273,7 +273,7 @@ class Test_Object extends Test_Instance {
 
 	function add_error($error, $failed=true) {
 		try {
-			if($error->caller == $this->current_method->name) {
+			if($this->current_method != null && $error->caller == $this->current_method->name) {
 				$method = $this->current_method;
 			} else {
 				foreach($this->methods as $m) {

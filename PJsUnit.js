@@ -1,13 +1,13 @@
-if(typeof(JSUnit) == 'undefined') {
-	var JSUnit = (function () {
-		var echo = (console && console.log) ? console.log : print;
+if(typeof(PJsUnit) == 'undefined') {
+	var PJsUnit = (function () {
+		var echo = (typeof(console) != 'undefined' && console.log) ? console.log : print;
 		var _failedCount = 0;
 		var _passedCount = 0;
 		var _passed = true;
 		var _functions = [];
 		var _objects = [];
 		var _currentFunction = null
-                var _currentObject = null;
+        var _currentObject = null;
 		var _functionSuffix = "_test";
 		var _classSuffix = "_test";
 		var _methodSuffix = "_test";
@@ -428,7 +428,7 @@ if(typeof(JSUnit) == 'undefined') {
 		}
 	})();
 }
-JSUnit.addAssertion("assertTrue",function(b) {return b===true;});
+PJsUnit.addAssertion("assertTrue",function(b) {return b===true;});
 var fun = function(url,status) {
 	var e = this;
 	var xhr;
@@ -440,7 +440,7 @@ var fun = function(url,status) {
 	};
 	xhr.open("GET",url,true);
 }
-JSUnit.addEvent("xhrStatus",fun);
+PJsUnit.addEvent("xhrStatus",fun);
 
 function Test_Class() {
 	var send;
@@ -452,11 +452,11 @@ function Test_Class() {
 		console.log("Tear Down");
 	}
 	this.method_test = function() {
-		JSUnit.xhrStatus("file:///home/frej/linux/WEBSCR/index.html",0);
-		JSUnit.assertTrue(false);
+		PJsUnit.xhrStatus("file:///home/frej/linux/WEBSCR/index.html",0);
+		PJsUnit.assertTrue(false);
 	}
 }
 
 var obj = new Test_Class();
-JSUnit.addObject(obj);
-JSUnit.test();
+PJsUnit.addObject(obj);
+PJsUnit.test();

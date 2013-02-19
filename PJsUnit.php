@@ -44,7 +44,6 @@ class PJsUnit
     private static $_assertionMethods = array();
     private static $_instanceCount = 0;
     private static $_iniFile = "PJsUnit/PJsUnit.ini";
-
     /**
      * Unused constructor. The implementation of the test engine requires no 
      * additional objects of this class to be created.
@@ -231,20 +230,7 @@ class PJsUnit
      */
     static function __callStatic($name, $arguments)
     {
-        if (count($arguments) == 1 
-            && ((is_string($arguments[0]) 
-            && function_exists($arguments[0])) 
-            || (is_object($arguments[0]) 
-            && ($arguments[0] instanceof Closure)))
-        ) {
-            $temp_arr = [$name=>$arguments[0]];
-            PJsUnit::$_assertionMethods = array_merge(
-                PJsUnit::$_assertionMethods, 
-                $temp_arr
-            );
-            return isset(PJsUnit::$_assertionMethods[$name])
-                   && PJsUnit::$_assertionMethods[$name] == $arguments[0];
-        } elseif (isset(PJsUnit::$_assertionMethods[$name])) {
+        if (isset(PJsUnit::$_assertionMethods[$name])) {
             $reflection = new ReflectionFunction(PJsUnit::$_assertionMethods[$name]);
             if ($reflection->getNumberOfParameters() == count($arguments) -1) {
                 $message = $arguments[count($arguments)-1];
@@ -266,6 +252,37 @@ class PJsUnit
             throw new Exception(
                 "The method ".__CLASS__."::$name()' is not defined."
             );
+        }
+    }
+    /**
+     * Adds an assertion function to the test engine. If the function was added 
+     * sucessfully The method can be reached statically by calling: 
+     * "PJsUnit::$name($arg1, $arg2, ..., $argn, $errorMessage);" The function that 
+     * is added should return a boolean value. True indicates that the assertion 
+     * passed while false indicates that the assertion failed. Errors will be added 
+     * automatically if assertions fails.
+     * 
+     * @param string $name The name that the assertion function.
+     * @param mixed  $fun  The assertion function. The return type of the 
+     *                     function should be boolean.
+     * 
+     * @return boolean true if the function was successfully added to the test 
+     *                 engine, else false. 
+     */
+    function addAssertion($name, $fun)
+    {
+        if (((is_string($fun) 
+            && function_exists($fun)) 
+            || (is_object($fun) 
+            && ($fun instanceof Closure)))
+        ) {
+            if (isset(PJsUnit::$_assertionMethods[$name])) {
+                return false;
+            } else {
+                PJsUnit::$_assertionMethods[$name] = $fun;
+                return isset(PJsUnit::$_assertionMethods[$name])
+                       && PJsUnit::$_assertionMethods[$name] == $fun;
+            }
         }
     }
     /**

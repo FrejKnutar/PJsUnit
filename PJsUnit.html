@@ -28,9 +28,13 @@ function Test_Class() {
 		PJsUnit.assertTrue(false);
 	}
 }
-
+function test_fun() {
+	PJsUnit.assertTrue(true);
+	PJsUnit.assertTrue(false);
+};
 var obj = new Test_Class();
 PJsUnit.addObject(obj);
+PJsUnit.addFunction	(test_fun);
 PJsUnit.test();
 console.log(PJsUnit.toString());
 </script>

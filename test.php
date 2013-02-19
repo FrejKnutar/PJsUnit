@@ -17,24 +17,24 @@ class class_test {
 
 	//This method is called because the suffix is "_test"
 	function first_test($var = 5) {
-		PJsUnit::assert_false($this->var == $var);
+		PJsUnit::assertFalse($this->var == $var);
 	}
 	//This method is called because the suffix is "_test" and the parameter of this function isn't required.
 	function second_test($var = 5) {
-		PJsUnit::assert_false(true);
+		PJsUnit::assertFalse(true);
 	}
 	//This static method is called because the suffix is "_test" and the parameter isn't required.
 	static function third_test($var = 5) {
-		PJsUnit::assert_true(true);
-		PJsUnit::assert_array_key_exists("hej",["hej"=>"ja"]);
+		PJsUnit::assertTrue(true);
+		PJsUnit::assertArrayKeyExists("hej",["hej"=>"ja"]);
 	}
 	//This method is not added, the method is prvate.
 	private function fourth_test($var = 5) {
-		PJsUnit::assert_false(true);
+		PJsUnit::assertFalse(true);
 	}
 	//This method is not added automatically unless it has an assert method call and is called by an objct.
 	function test() {
-		PJsUnit::assert_string("true");
+		PJsUnit::assertString("true");
 	}
 	//This method is the last one to be called, it is the tear_down/after method.
 	function tear_down() {
@@ -48,31 +48,30 @@ class Obj {
 		$this->var = $var;
 	}
 	function test() {
-		PJsUnit::assert_true(false);
+		PJsUnit::assertTrue(false);
 	}
 }
 
 //This function is added automatically because the suffix is "_test" and the parameter isn't required.
 function function_test($var = 5) {
-	PJsUnit::assert_true(true);
+	PJsUnit::assertTrue(true);
 }
 //This function is added automatically because the suffix is "_test".
 function function_two_test() {
-	PJsUnit::assert_true(false);
+	PJsUnit::assertTrue(false);
 }
 //This function is added when it is called.
 function foo() {
-	PJsUnit::assert_true(true);
+	PJsUnit::assertTrue(true);
 }
 //This function is added when it is called.
 function bar() {
-	PJsUnit::assert_false(true);
+	PJsUnit::assertFalse(true);
 }
 //Creates an anonymous function.
 $fun = function($string) {return is_string($string);};
 //Adds the previously created function to PJsUnit and is now callable as a static assertion function.
-PJsUnit::assert_string($fun);
-
+PJsUnit::addAssertion("assertString",$fun);
 $obj = new class_test();
 $obj->test();
 PJsUnit::addObject($obj);

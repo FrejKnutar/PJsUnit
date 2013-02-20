@@ -1,33 +1,64 @@
+/**
+ * This file contains a unit testing interface for JavaScript.
+ * Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+ * Author: Frej Knutar <frej.knutar@gmail.com>
+ * Site https://github.com/FrejKnutar/PJsUnit
+ */
 if (typeof PJsUnit === 'undefined') {
     var PJsUnit = (function () {
-        var echo = (typeof console !== 'undefined' && console.log) ? console.log : print,
-            _failedCount = 0,
+        var _failedCount = 0,
             _passedCount = 0,
             _passed = true,
             _functions = [],
             _objects = [],
             _currentFunction = null,
             _currentObject = null,
-            _functionSuffix = '_test',
-            _classSuffix = '_test',
-            _methodSuffix = '_test',
-            _setUpName = 'set_up',
-            _tearDownName = 'tear_down',
+            _functionSuffix = 'Test',
+            _objectSuffix = 'Test',
+            _methodSuffix = 'Test',
+            _setUpName = 'setUp',
+            _tearDownName = 'tearDown',
             _time = 0,
+            _writeFun = (function () {
+                try {
+                    return console.log;
+                } catch (e) {
+                    return print;
+                }
+            }()),
+            /*
+             * If possible, returns the class name of the object. If there isn't 
+             * one "[Anonymous]" is returned.
+             * 
+             * @return String name of the class. 
+             */
             getClass = function () {
                 var funcNameRegex = /function (.{1,})\(/,
                     results = (funcNameRegex).exec(this.constructor.toString());
                 return (results && results.length > 1) ? results[1] : '[Anonymous]';
             },
+            /*
+             * If possible, returns the name of the function if there is one. If 
+             * there isn't one "[Anonymous]" is returned.
+             * 
+             * @return String name of the function
+             */
             getFunctionName = function () {
                 var funcNameRegex = /function (.{1,})\(/,
                     results = (funcNameRegex).exec(this.toString());
                 return (results && results.length > 1) ? results[1] : '[Anonymous]';
             },
-            IllegalArgumentException = function (expectedType, receivedType) {
-                var name = 'IllegalArgumentException',
+            /*
+             * Exception that is to be thrown if the expected parameter type isn't 
+             * the expected type.
+             * 
+             * @param String expectedType The expected type of the parameter.
+             * @param String ReceivedType The received type of the parameter.
+             */
+            IllegalParameterException = function (expectedType, receivedType) {
+                var name = 'IllegalParameterException',
                     message =
-                        'Bad argument given; expected argument with type "' +
+                        'Bad parameter given; expected parameter with type "' +
                         expectedType + '" but received "' + receivedType + '".',
                     toString = function () {
                         return '[' + name + '] ' + message;
@@ -39,11 +70,14 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
+            /*
+             * Exception that is to be thrown if the value of the parameter is null.
+             */
             NullPointerException = function () {
                 var name = 'NullPointerException',
                     message =
-                        'Null pointer argument given; ' +
-                        'received argument with value "null".',
+                        'Null pointer parameter given; ' +
+                        'received parameter with value "null".',
                     toString = function () {
                         return '[' + name + '] ' + message;
                     };
@@ -54,12 +88,18 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
-            UndefinedArgumentException = function (argumentName, argumentIndex) {
-                var name = 'UndefinedArgumentException',
+            /*
+             * Exception that is to be thrown if the parameter isn't defined.
+             *
+             * @param String parameterName  The name of the parameter.
+             * @param int    parameterIndex The parameter position or index.
+             */
+            UndefinedParameterException = function (parameterName, parameterIndex) {
+                var name = 'UndefinedParameterException',
                     message =
-                        'Argument missing; expected argument "' +
-                        name + '" as argument number ' +
-                        argumentIndex + '.',
+                        'Parameter missing; expected parameter "' +
+                        name + '" as parameter number ' +
+                        parameterIndex + '.',
                     toString = function () {
                         return '[' + name + '] ' + message;
                     };
@@ -70,6 +110,9 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
+            /*
+             * Function that is called when representing an error as a String. 
+             */
             _errorToString = function () {
                 var argarray = [null],
                     argstr = '(',
@@ -97,28 +140,33 @@ if (typeof PJsUnit === 'undefined') {
                     }
                 }
                 argstr += ')';
-                if (typeof this.callee() === 'undefined') {
+                if (typeof this.caller === 'undefined') {
                     argarray[0] =
                         'The assertion "' +
                         this.assertion() + argstr +
                         '" failed';
                 } else {
                     argarray[0] =
-                        '"' + this.callee() +
+                        '"' + this.caller +
                         '" failed the assertion "' +
                         this.assertion() + argstr + '".';
                 }
                 return argarray[0];
             },
-            TestError = function (assertionName, calleeName, argumentObject) {
+            /*
+             * Class that represents a TestError. A TestError occurs when an 
+             * assertion fails to pass and is added to the method under test 
+             * or function under test where the failed assertion occured. 
+             */
+            TestError = function (assertionName, calleeName, parameterObject) {
                 if (typeof assertionName === 'undefined') {
-                    throw new UndefinedArgumentException(
+                    throw new UndefinedParameterException(
                         'assertionName',
                         1
                     );
                 }
                 if (typeof assertionName !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof assertionName
                     );
@@ -127,10 +175,10 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
                 if (typeof calleeName === 'undefined') {
-                    throw new UndefinedArgumentException('calleeName', 2);
+                    throw new UndefinedParameterException('calleeName', 2);
                 }
                 if (typeof calleeName !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof calleeName
                     );
@@ -138,38 +186,55 @@ if (typeof PJsUnit === 'undefined') {
                 if (calleeName === null) {
                     throw new NullPointerException();
                 }
-                if (typeof argumentObject !== 'undefined' && typeof argumentObject !== 'object') {
-                    throw new IllegalArgumentException(
+                if (typeof parameterObject !== 'undefined' && typeof parameterObject !== 'object') {
+                    throw new IllegalParameterException(
                         'object',
-                        typeof argumentObject
+                        typeof parameterObject
                     );
                 }
                 var _assertion = assertionName,
                     _callee = calleeName,
-                    _args = argumentObject,
+                    _args = parameterObject,
+                    /*
+                     * Returns the name of the failed assertion.
+                     */
                     assertion = function () {
                         return _assertion;
                     },
-                    callee = function () {
+                    /*
+                     * Returns the name of the function or method where the error 
+                     * occured.
+                     */
+                    caller = function () {
                         return _callee;
                     },
+                    /*
+                     * Returns the argument object of the of the assertion function 
+                     * where the error occured.
+                     */
                     args = function () {
                         return _args;
                     },
+                    /*
+                     * Converts and returns the object as a String.
+                     */
                     toString = function () {
                         return _errorToString.apply({
                             assertion: assertion,
-                            callee: callee,
+                            caller: caller(),
                             args: args()
                         });
                     };
                 return {
-                    assertion: assertion,
-                    callee: callee,
-                    args: args,
+                    assertion: assertion(),
+                    caller: caller(),
+                    args: args(),
                     toString: toString
                 };
             },
+            /*
+             * Function that is called when representing a function as a String.
+             */
             _functionToString = function () {
                 var str = 'Function ' + this.name + '()';
                 if (this.passed) {
@@ -177,17 +242,21 @@ if (typeof PJsUnit === 'undefined') {
                 } else {
                     str += ' Failed';
                 }
+                i = this.errors.length;
                 this.errors.map(function (error) {
-                    str += '\n  ' + error;
+                    str += '\n |-' + error;
                 });
                 return str;
             },
+            /*
+             * Class that represents functions under test.
+             */
             TestFunction = function (func, funcName) {
                 if (typeof func === 'undefined') {
-                    throw new UndefinedArgumentException('func', 1);
+                    throw new UndefinedParameterException('func', 1);
                 }
                 if (typeof func !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof func
                     );
@@ -197,7 +266,7 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 if (typeof funcName !== 'undefined') {
                     if (typeof funcName !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof funcName
                         );
@@ -210,36 +279,44 @@ if (typeof PJsUnit === 'undefined') {
                     _passed = true,
                     _errors = [],
                     _time = 0,
-                    _name = (typeof funcName !== 'undefined') ? funcName : getFunctionName.apply(func),
+                    _name = (typeof funcName === 'string') ? funcName : getFunctionName.apply(func),
+                    /*
+                     * Returns the function under test.
+                     */
                     fun = function () {
                         return _fun;
                     },
+                    /*
+                     * Returns the name of the function under test.
+                     */
                     name = function () {
                         return _name;
                     },
+                    /*
+                     * Returns true if the function under test has passed all 
+                     * assertions, else false.
+                     */
                     passed = function () {
                         return _passed;
                     },
+                    /*
+                     * Adds a TestError assertion error to the TestFunction.
+                     */
                     addError = function (error) {
                         _passed = false;
                         _errors.push(error);
                     },
-                    time = function (time) {
-                        if (typeof time === 'undefined') {
-                            return _time;
-                        }
-                        if (typeof time === 'number' && time % 1 === 0) {
-                            _time = time;
-                            return time;
-                        } else if (time === null) {
-                            throw new NullPointerException();
-                        } else {
-                            throw new IllegalArgumentException(
-                                'int',
-                                typeof time
-                            );
-                        }
+                    /*
+                     * Returns the time it took to execute the function under test.
+                     */
+                    time = function () {
+                        return _time;
                     },
+                    /*
+                     * Runs the test, potentially executing the function under test.
+                     * All TestErrors that occurs when the function under test is 
+                     * executed will be added to the TestFunction object.
+                     */
                     test = function (runTest) {
                         if (typeof runTest === 'undefined') {
                             runTest = true;
@@ -251,6 +328,9 @@ if (typeof PJsUnit === 'undefined') {
                         }
                         return _passed;
                     },
+                    /*
+                     * Returns a String representation of the object.
+                     */
                     toString = function () {
                         var error_strings = [],
                             obj;
@@ -275,6 +355,9 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
+            /*
+             * Function that is called when represnting a TestMethod as a String.
+             */
             _methodToString = function () {
                 var str = 'Method ' + this.name + '()';
                 if (this.passed) {
@@ -283,16 +366,19 @@ if (typeof PJsUnit === 'undefined') {
                     str += ' Failed';
                 }
                 this.errors.map(function (error) {
-                    str += '\n    ' + error;
+                    str += '\n |  | ' + error;
                 });
                 return str;
             },
-            TestMethod = function (methodFun, methodName) {
+            /*
+             * Class that represents methods under test.
+             */
+            TestMethod = function (methodFun, caller) {
                 if (typeof methodFun === 'undefined') {
-                    throw new UndefinedArgumentException('methodFun', 1);
+                    throw new UndefinedParameterException('methodFun', 1);
                 }
                 if (typeof methodFun !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof methodFun
                     );
@@ -300,36 +386,54 @@ if (typeof PJsUnit === 'undefined') {
                 if (methodFun === null) {
                     throw new NullPointerException();
                 }
-                if (typeof methodName === 'undefined') {
-                    throw new UndefinedArgumentException('methodName', 2);
+                if (typeof caller === 'undefined') {
+                    throw new UndefinedParameterException('caller', 2);
                 }
-                if (typeof methodName !== 'string') {
-                    throw new IllegalArgumentException(
+                if (typeof caller !== 'string') {
+                    throw new IllegalParameterException(
                         'string',
-                        typeof methodName
+                        typeof caller
                     );
                 }
-                if (methodName === null) {
+                if (caller === null) {
                     throw new NullPointerException();
                 }
                 var _method = methodFun,
-                    _name = methodName,
+                    _name = caller,
                     _passed = true,
                     _errors = [],
                     _time = 0,
+                    /*
+                     * Returns the method under test.
+                     */
                     method = function () {
                         return _method;
                     },
+                    /*
+                     * Returns the name of the method under test.
+                     */
                     name = function () {
                         return _name;
                     },
+                    /*
+                     * Returns true if the method under test has passed all 
+                     * assertions, else false.
+                     */
                     passed = function () {
                         return _passed;
                     },
+                    /*
+                     * Adds a TestError error to the TestMethod.
+                     */
                     addError = function (error) {
                         _passed = false;
                         _errors.push(error);
                     },
+                    /*
+                     * Potentially sets the time it took to execute the method 
+                     * under test. Always returns the time property of the 
+                     * TestMethod.
+                     */
                     time = function (time) {
                         if (typeof time === 'undefined') {
                             return _time;
@@ -340,7 +444,7 @@ if (typeof PJsUnit === 'undefined') {
                         } else if (time === null) {
                             throw new NullPointerException();
                         } else {
-                            throw new IllegalArgumentException(
+                            throw new IllegalParameterException(
                                 'int',
                                 typeof time
                             );
@@ -369,12 +473,16 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
+            /*
+             * Class that represents a pending assertion that will trigger by an 
+             * event.
+             */
             TestEvent = function (fun) {
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 1);
+                    throw new UndefinedParameterException('fun', 1);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof fun
                     );
@@ -384,14 +492,23 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 var _value = {},
                     onchange = fun,
+                    /*
+                     * Makes the assertion pass and executes the onchange function.
+                     */
                     passed = function () {
                         _value = true;
                         onchange();
                     },
+                    /*
+                     * Makes the assertion fail and executes the onchange function.
+                     */
                     failed = function () {
                         _value = false;
                         onchange();
                     },
+                    /*
+                     * Returns the value of the pending assertion.
+                     */
                     value = function () {
                         return _value;
                     };
@@ -402,6 +519,9 @@ if (typeof PJsUnit === 'undefined') {
                     value: value
                 };
             },
+            /*
+             * Function that is called when converting a TestObject to a String.
+             */
             _objectToString = function () {
                 var str = 'Object ' + this.name;
                 if (this.passed) {
@@ -410,16 +530,19 @@ if (typeof PJsUnit === 'undefined') {
                     str += ' Failed';
                 }
                 this.methods.map(function (method) {
-                    str += '\n  ' + method;
+                    str += "\n | " + method;
                 });
                 return str;
             },
+            /*
+             * Class that represents an Object under test.
+             */
             TestObject = function (obj, objName) {
                 if (typeof obj === 'undefined') {
-                    throw new UndefinedArgumentException('obj', 1);
+                    throw new UndefinedParameterException('obj', 1);
                 }
                 if (typeof obj !== 'object') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'object',
                         typeof obj
                     );
@@ -429,7 +552,7 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 if (typeof objName !== 'undefined') {
                     if (typeof objName !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof objName
                         );
@@ -439,7 +562,7 @@ if (typeof PJsUnit === 'undefined') {
                     }
                 }
                 var _obj = obj,
-                    _name = (typeof objName !== 'undefined') ? objName : getClass.apply(_obj),
+                    _name = (typeof objName === 'string') ? objName : getClass.apply(_obj),
                     _setUp = null,
                     _tearDown = null,
                     _methods = [],
@@ -447,6 +570,9 @@ if (typeof PJsUnit === 'undefined') {
                     _wasTimed = false,
                     _time = 0,
                     _passed = true,
+                    /*
+                     * Constructor of the class.
+                     */
                     construct = function (obj) {
                         var method;
                         _obj = obj;
@@ -464,10 +590,16 @@ if (typeof PJsUnit === 'undefined') {
                             _tearDown = obj[_tearDownName];
                         }
                     },
+                    /*
+                     * Potentially executes all method under test of the object 
+                     * under test. All failed assertion TestErrors will be added to  
+                     * the TestMethod that hold the method under test where the 
+                     * assertion failed.
+                     */
                     test = function (runTest) {
                         if (typeof runTest !== 'undefined') {
                             if (typeof runTest !== 'boolean') {
-                                throw new IllegalArgumentException(
+                                throw new IllegalParameterException(
                                     'boolean',
                                     typeof runTest
                                 );
@@ -498,12 +630,23 @@ if (typeof PJsUnit === 'undefined') {
                         _time = totalTime;
                         return _passed;
                     },
+                    /*
+                     * Returns the name of the object under test.
+                     */
                     name = function () {
                         return _name;
                     },
+                    /*
+                     * Returns true if no assertion errors occured when executing 
+                     * the methods under test of the object under test, else false. 
+                     */
                     passed = function () {
                         return _passed;
                     },
+                    /*
+                     * Returns the name of the method under test that is currently 
+                     * being executed.
+                     */
                     currentMethodName = function () {
                         if (typeof _currentMethod !== 'undefined'
                                 && _currentMethod !== null) {
@@ -512,9 +655,13 @@ if (typeof PJsUnit === 'undefined') {
                             return null;
                         }
                     },
-                    addError = function (error, methodName) {
+                    /*
+                     * Adds an error to the TestMethod that holds the method under 
+                     * test where the error occured.
+                     */
+                    addError = function (error, caller) {
                         if (typeof error !== 'object') {
-                            throw new IllegalArgumentException(
+                            throw new IllegalParameterException(
                                 'object',
                                 typeof error
                             );
@@ -522,26 +669,26 @@ if (typeof PJsUnit === 'undefined') {
                         if (error === null) {
                             throw new NullPointerException();
                         }
-                        if (typeof methodName !== 'undefined') {
-                            if (typeof methodName !== 'boolean') {
-                                throw new IllegalArgumentException(
+                        if (typeof caller !== 'undefined') {
+                            if (typeof caller !== 'boolean') {
+                                throw new IllegalParameterException(
                                     'boolean',
-                                    typeof methodName
+                                    typeof caller
                                 );
                             }
-                            if (methodName === null) {
+                            if (caller === null) {
                                 throw new NullPointerException();
                             }
                         }
                         var returnvar = false;
-                        if (typeof methodName === 'undefined'
-                                || methodName === currentMethodName()) {
+                        if (typeof caller === 'undefined'
+                                || caller === currentMethodName()) {
                             _currentMethod.addError(error);
                             _passed = false;
                             returnvar = true;
                         } else {
                             _methods.map(function (method) {
-                                if (method.name() === methodName) {
+                                if (method.name() === caller) {
                                     method.addError(error);
                                     _passed = false;
                                     returnvar = true;
@@ -550,6 +697,9 @@ if (typeof PJsUnit === 'undefined') {
                         }
                         return returnvar;
                     },
+                    /*
+                     * Returns a String representation of the object.
+                     */
                     toString = function () {
                         var method_strings = [],
                             obj;
@@ -574,10 +724,14 @@ if (typeof PJsUnit === 'undefined') {
                     toString: toString
                 };
             },
+            /*
+             * Updates the suffix that functions must end with to be added to the 
+             * test engine automatically. Always returns the function suffix.
+             */
             functionSuffix = function (suffix) {
                 if (typeof suffix !== 'undefined') {
                     if (typeof suffix !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof suffix
                         );
@@ -591,10 +745,14 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 return _functionSuffix;
             },
-            classSuffix = function (suffix) {
+            /*
+             * Updates the suffix that classes must end with to be added to the 
+             * test engine automatically. Always returns the class suffix.
+             */
+            objectSuffix = function (suffix) {
                 if (typeof suffix !== 'undefined') {
                     if (typeof suffix !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof suffix
                         );
@@ -604,14 +762,18 @@ if (typeof PJsUnit === 'undefined') {
                     }
                 }
                 if (typeof suffix === 'string') {
-                    _classSuffix = suffix;
+                    _objectSuffix = suffix;
                 }
-                return _classSuffix;
+                return _objectSuffix;
             },
+            /*
+             * Updates the suffix that methods must end with to be added to the 
+             * test engine automatically. Always returns the method suffix.
+             */
             methodSuffix = function (suffix) {
                 if (typeof suffix !== 'undefined') {
                     if (typeof suffix !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof suffix
                         );
@@ -625,10 +787,15 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 return _methodSuffix;
             },
+            /*
+             * Updates the name of the methods that will be executed by the engine 
+             * before the methods under test should be executed. Always returns the 
+             * set up method name.
+             */
             setUpName = function (name) {
                 if (typeof name !== 'undefined') {
                     if (typeof name !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof name
                         );
@@ -642,10 +809,15 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 return _setUpName;
             },
+            /*
+             * Updates the name of the methods that will be executed by the engine 
+             * after all the methods under test have been executed. Always returns 
+             * the tear down method name.
+             */
             tearDownName = function (name) {
                 if (typeof name !== 'undefined') {
                     if (typeof name !== 'string') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'string',
                             typeof name
                         );
@@ -659,12 +831,19 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 return _tearDownName;
             },
-            addObject = function (obj) {
+            /*
+             * Adds an object to the test engine. The method with the same name as 
+             * the setUpName property will be executed first, then all methods
+             * which names ends with the methodSuffix and lastly the method that 
+             * has the name of the tearDownName proporty. All failed assertion
+             * will be displayed when the all the former methods have been executed.
+             */
+            addObject = function (obj, objName) {
                 if (typeof obj === 'undefined') {
-                    throw new UndefinedArgumentException('obj', 1);
+                    throw new UndefinedParameterException('obj', 1);
                 }
                 if (typeof obj !== 'object') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'object',
                         typeof obj
                     );
@@ -672,14 +851,30 @@ if (typeof PJsUnit === 'undefined') {
                 if (obj === null) {
                     throw new NullPointerException();
                 }
-                _objects.push(new TestObject(obj));
+                if(typeof objName !== 'undefined') {
+                    if(typeof objName !== 'string') {
+                        throw new IllegalParameterException(
+                            'string',
+                            typeof objName
+                        );
+                    }
+                    if(objName === null) {
+                        throw new NullPointerException();
+                    }
+                }
+                _objects.push(new TestObject(obj, objName));
             },
-            addFunction = function (fun) {
+            /*
+             * Adds a function to the test engine. The function will be executed 
+             * and assertion errors will be displayed if any are encountered while 
+             * executing the function.
+             */
+            addFunction = function (fun, funName) {
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 1);
+                    throw new UndefinedParameterException('fun', 1);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof fun
                     );
@@ -687,14 +882,28 @@ if (typeof PJsUnit === 'undefined') {
                 if (fun === null) {
                     throw new NullPointerException();
                 }
-                _functions.push(new TestFunction(fun));
+                if(typeof funName !== 'undefined') {
+                    if(typeof funName !== 'string') {
+                        throw new IllegalParameterException(
+                            'string',
+                            typeof funName
+                        );
+                    }
+                    if(funName === null) {
+                        throw new NullPointerException();
+                    }
+                }
+                _functions.push(new TestFunction(fun, funName));
             },
-            _assertionPassed = function (assertion, callee, args) {
+            /*
+             * Marks an assertion as passed.
+             */
+            _assertionPassed = function (assertion, caller, args) {
                 if (typeof assertion === 'undefined') {
-                    throw new UndefinedArgumentException('assertion', 1);
+                    throw new UndefinedParameterException('assertion', 1);
                 }
                 if (typeof assertion !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof assertion
                     );
@@ -702,26 +911,26 @@ if (typeof PJsUnit === 'undefined') {
                 if (assertion === null) {
                     throw new NullPointerException();
                 }
-                if (typeof callee === 'undefined') {
-                    throw new UndefinedArgumentException(
-                        'callee',
+                if (typeof caller === 'undefined') {
+                    throw new UndefinedParameterException(
+                        'caller',
                         2
                     );
                 }
-                if (typeof callee !== 'string') {
-                    throw new IllegalArgumentException(
+                if (typeof caller !== 'string') {
+                    throw new IllegalParameterException(
                         'string',
-                        typeof callee
+                        typeof caller
                     );
                 }
-                if (callee === null) {
+                if (caller === null) {
                     throw new NullPointerException();
                 }
                 if (typeof args === 'undefined') {
-                    throw new UndefinedArgumentException('args', 3);
+                    throw new UndefinedParameterException('args', 3);
                 }
                 if (typeof args !== 'object') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'object',
                         typeof args
                     );
@@ -730,15 +939,19 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
             },
-            _assertionFailed = function (assertion, callee, args) {
+            /*
+             * Marks an assertion as failed, adding an error to the corresponding 
+             * function or method under test.
+             */
+            _assertionFailed = function (assertion, caller, args) {
                 if (typeof assertion === 'undefined') {
-                    throw new UndefinedArgumentException(
+                    throw new UndefinedParameterException(
                         'assertion',
                         1
                     );
                 }
                 if (typeof assertion !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof assertion
                     );
@@ -746,26 +959,26 @@ if (typeof PJsUnit === 'undefined') {
                 if (assertion === null) {
                     throw new NullPointerException();
                 }
-                if (typeof callee === 'undefined') {
-                    throw new UndefinedArgumentException(
-                        'callee',
+                if (typeof caller === 'undefined') {
+                    throw new UndefinedParameterException(
+                        'caller',
                         2
                     );
                 }
-                if (typeof callee !== 'string') {
-                    throw new IllegalArgumentException(
+                if (typeof caller !== 'string') {
+                    throw new IllegalParameterException(
                         'string',
-                        typeof callee
+                        typeof caller
                     );
                 }
-                if (callee === null) {
+                if (caller === null) {
                     throw new NullPointerException();
                 }
                 if (typeof args === 'undefined') {
-                    throw new UndefinedArgumentException('args', 3);
+                    throw new UndefinedParameterException('args', 3);
                 }
                 if (typeof args !== 'object') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'object',
                         typeof args
                     );
@@ -776,14 +989,21 @@ if (typeof PJsUnit === 'undefined') {
                 if (this === null) {
                     return;
                 }
-                this.addError(new TestError(assertion, callee, args));
+                this.addError(new TestError(assertion, caller, args));
             },
+            /*
+             * Adds an assertion function to the engine. The function can be 
+             * reached by calling "PJsUnit.functionName(parameters);" where the 
+             * functionName is the name parameter of this method. The input 
+             * function should return true if the assertion passed and false if 
+             * the assertion failed.
+             */
             addAssertion = function (name, fun) {
                 if (typeof name === 'undefined') {
-                    throw new UndefinedArgumentException('name', 1);
+                    throw new UndefinedParameterException('name', 1);
                 }
                 if (typeof name !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof name
                     );
@@ -792,10 +1012,10 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 2);
+                    throw new UndefinedParameterException('fun', 2);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof fun
                     );
@@ -804,40 +1024,53 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
                 var assertFun = function () {
-                    var callee,
+                    var caller,
                         current = null,
                         args = arguments,
                         passed = fun.apply(null, arguments);
                     if (typeof assertFun.caller !== 'undefined'
-                            && assertFun.caller.name !== null
-                            && assertFun.caller.name !== '') {
+                        && typeof assertFun.caller.name === 'string'
+                        && assertFun.caller.name !== '')
+                    {
                         if (typeof _currentFunction !== null
-                                && _currentFunction.name() === assertFun.caller.name) {
-                            callee = _currentFunction.name();
+                            && _currentFunction.name() === assertFun.caller.name)
+                        {
+                            caller = _currentFunction.name();
                             current = _currentFunction;
                         } else {
-                            callee = assertFun.caller.name;
+                            caller = assertFun.caller.name;
                         }
                     } else if (_currentObject !== null) {
-                        callee = _currentObject.currentMethodName();
+                        caller = _currentObject.currentMethodName();
                         current = _currentObject;
+                    } else if (_currentFunction !== null) {
+                        caller = _currentFunction.name();
+                        current = _currentFunction;
                     } else {
-                        callee = _currentFunction.name();
+                        caller = _currentFunction.name();
                     }
                     if (passed === true) {
-                        _assertionPassed.apply(current, [name, callee, args]);
+                        _assertionPassed.apply(current, [name, caller, args]);
                     } else if (passed === false) {
-                        _assertionFailed.apply(current, [name, callee, args]);
+                        _assertionFailed.apply(current, [name, caller, args]);
                     }
                 };
                 this[name] = assertFun;
             },
+            /*
+             * Adds a pending assertion function to the engine. The function can be 
+             * reached by calling "PJsUnit.functionName(parameters);" where the 
+             * functionName is the name parameter of this method. The function will 
+             * be called with a TestEvent object. Calling "this.passed()" will make 
+             * the pending assertion pass while calling "this.failed()" will make 
+             * the pending assertion fail.
+             */
             addEvent = function (name, fun) {
                 if (typeof name === 'undefined') {
-                    throw new UndefinedArgumentException('name', 1);
+                    throw new UndefinedParameterException('name', 1);
                 }
                 if (typeof name !== 'string') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'string',
                         typeof name
                     );
@@ -846,10 +1079,10 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 2);
+                    throw new UndefinedParameterException('fun', 2);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
+                    throw new IllegalParameterException(
                         'function',
                         typeof fun
                     );
@@ -857,41 +1090,51 @@ if (typeof PJsUnit === 'undefined') {
                 if (fun === null) {
                     throw new NullPointerException();
                 }
-                var callee,
+                var caller,
                     current = null,
                     eventFun = function () {
                         var args = arguments,
                             eventListener;
-                        if (typeof eventFun.caller !== 'undefined' &&
-                                eventFun.caller.name !== '') {
-                            if (typeof _currentFunction !== 'undefined' &&
-                                    _currentFunction.name() === eventFun.caller.name) {
-                                callee = _currentFunction.name();
+                        if (typeof eventFun.caller !== 'undefined'
+                            && typeof eventFun.caller.name === 'string'
+                            && typeof eventFun.caller.name !== '')
+                        {
+                            if (_currentFunction !== null &&
+                                _currentFunction.name() === eventFun.caller.name)
+                            {
+                                caller = _currentFunction.name();
                                 current = _currentFunction;
                             } else {
-                                callee = eventFun.caller.name;
+                                caller = eventFun.caller.name;
                             }
                         } else if (_currentObject !== null) {
-                            callee = _currentObject.currentMethodName();
+                            caller = _currentObject.currentMethodName();
                             current = _currentObject;
+                        } else if (_currentFunction !== null) {
+                            caller = _currentFunction.name();
+                            current = _currentFunction;
                         } else {
-                            callee = _currentFunction.name();
+                            caller = _currentFunction.name();
                         }
                         eventListener = new TestEvent(function () {
                             if (eventListener.value() === true) {
-                                _assertionPassed.apply(current, [name, callee, args]);
+                                _assertionPassed.apply(current, [name, caller, args]);
                             } else if (eventListener.value() === false) {
-                                _assertionFailed.apply(current, [name, callee, args]);
+                                _assertionFailed.apply(current, [name, caller, args]);
                             }
                         });
                         fun.apply(eventListener, arguments);
                     };
                 this[name] = eventFun;
             },
+            /*
+             * Executes all the test objects and test functions, adding assertion 
+             * errors to the method or function where they occured.
+             */
             test = function (runTest) {
                 if (typeof runTest !== 'undefined') {
                     if (typeof runTest !== 'boolean') {
-                        throw new IllegalArgumentException(
+                        throw new IllegalParameterException(
                             'boolean',
                             typeof runTest
                         );
@@ -919,79 +1162,146 @@ if (typeof PJsUnit === 'undefined') {
                 });
                 _currentFunction = null;
             },
+            /*
+             * Returns the object as a String representation.
+             */
             toString = function () {
                 var str = '';
                 _objects.map(function (object) {
-                    str += object.toString();
+                    str += object.toString() + '\n';
                 });
-                if (_objects.length > 0 && _functions.length > 0) {
-                    str += '\n';
-                }
                 _functions.map(function (fun) {
-                    str += fun.toString();
+                    str += fun.toString() + '\n';
                 });
                 return str;
             },
+            /*
+             * Changes the function that is used when converting an assertion error 
+             * to a String to the parameter function. 
+             */
             errorToString = function (fun) {
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 1);
+                    throw new UndefinedParameterException('fun', 1);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
-                        'string',
+                    throw new IllegalParameterException(
+                        'function',
                         typeof fun
                     );
+                } else {
+                    _errorToString = fun;
                 }
                 if (fun === null) {
                     throw new NullPointerException();
                 }
-                if (typeof fun === 'function') {
-                    _errorToString = fun;
+            },
+            /*
+             * Changes the function that is used when converting a function under 
+             * test to a String to the parameter function.
+             */
+            functionToString = function (fun) {
+                if (typeof fun === 'undefined') {
+                    throw new UndefinedParameterException('fun', 1);
+                }
+                if (typeof fun !== 'function') {
+                    throw new IllegalParameterException(
+                        'function',
+                        typeof fun
+                    );
                 } else {
-                    throw new IllegalArgumentException('function', typeof fun);
+                    _functionToString = fun;
+                }
+                if (fun === null) {
+                    throw new NullPointerException();
                 }
             },
+            /*
+             * Changes the function that is used when converting a method under 
+             * test to a String to the parameter function.
+             */
             methodToString = function (fun) {
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 1);
+                    throw new UndefinedParameterException('fun', 1);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
-                        'string',
+                    throw new IllegalParameterException(
+                        'function',
                         typeof fun
                     );
+                } else {
+                    _methodToString = fun;
                 }
                 if (fun === null) {
                     throw new NullPointerException();
-                }
-                if (typeof fun === 'function') {
-                    _methodToString = fun;
-                } else {
-                    throw new IllegalArgumentException('function', typeof fun);
                 }
             },
+            /*
+             * Changes the function that is used when converting an object under 
+             * test to a String to the parameter function.
+             */
             objectToString = function (fun) {
                 if (typeof fun === 'undefined') {
-                    throw new UndefinedArgumentException('fun', 1);
+                    throw new UndefinedParameterException('fun', 1);
                 }
                 if (typeof fun !== 'function') {
-                    throw new IllegalArgumentException(
-                        'string',
+                    throw new IllegalParameterException(
+                        'function',
                         typeof fun
                     );
+                } else {
+                    _objectToString = fun;
                 }
                 if (fun === null) {
                     throw new NullPointerException();
                 }
-                if (typeof fun === 'function') {
-                    _objectToString = fun;
+            },
+            writeFun = function (fun) {
+                if (typeof fun === 'undefined') {
+                    throw new UndefinedParameterException('fun', 1);
+                }
+                if (typeof fun !== 'function') {
+                    throw new IllegalParameterException(
+                        'function',
+                        typeof fun
+                    );
                 } else {
-                    throw new IllegalArgumentException('function', typeof fun);
+                    _writeFun = fun;
+                }
+                if (fun === null) {
+                    throw new NullPointerException();
                 }
             };
+        /*
+         * The following code will automatically check all defined variables and 
+         * add objects and functions with the correct suffix to the test engine.
+         * When all variables have been added testing will automatically start and 
+         * the output will be printed with the writeFun function.
+         */
+        if(typeof window !== 'undefined') {
+            var onDocumentLoad = function() {
+                var element;
+                for (element in window) {
+                    if (typeof window[element] === 'object') {
+                        if(element.substr(element.length - _objectSuffix.length) === _objectSuffix) {
+                            PJsUnit.addObject(window[element], element);
+                        }
+                    } else if (typeof window[element] === 'function')
+                        if(element.substr(element.length - _functionSuffix.length) === _functionSuffix) {
+                            PJsUnit.addFunction(window[element], element);
+                        }
+                    }
+                    PJsUnit.test();
+                    _writeFun.apply(null, [PJsUnit.toString()]);
+                }
+            if (typeof window.addEventListener !== 'undefined') {
+                window.addEventListener('load', onDocumentLoad, false);
+            } else if (typeof window.attachEvent !== 'undefined') {
+                window.attachEvent('onload', onDocumentLoad);
+            }
+        }
         return {
             functionSuffix: functionSuffix,
-            classSuffix: classSuffix,
+            objectSuffix: objectSuffix,
             methodSuffix: methodSuffix,
             setUpName: setUpName,
             tearDownName: tearDownName,
@@ -1000,7 +1310,42 @@ if (typeof PJsUnit === 'undefined') {
             addObject: addObject,
             addFunction: addFunction,
             test: test,
+            writeFun: writeFun,
             toString: toString
         };
     })();
+    PJsUnit.addAssertion(
+        'assertTrue',
+        function (a, b) {
+            return a === b;
+        }
+    );
+    PJsUnit.addAssertion(
+        'assertFalse',
+        function (a, b) {
+            return a !== b;
+        }
+    );
+    if (typeof window !== 'undefined') {
+        if(window.XMLHttpRequest !== 'undefined') {
+            PJsUnit.addEvent(
+                'xhrStatusEquals',
+                function(url, status, method) {
+                    var e = this,
+                        xhr = new XMLHttpRequest();
+                    xhr.onreadystatechange = function() {
+                        if(xhr.status === status) {
+                            e.passed();
+                        } else if(xhr.status >= 400) {
+                            e.failed();
+                        }
+                    };
+                    if(method === 'undefined') {
+                        method = 'GET';
+                    }
+                    xhr.open(method, url, true);
+                }
+            );
+        }
+    }
 }

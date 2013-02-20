@@ -1,40 +1,24 @@
 <script type="text/javascript" src="PJsUnit.js"></script>
 <script type="text/javascript">
-PJsUnit.addAssertion("assertTrue",function(b) {return b===true;});
-var fun = function(url,status) {
-	var e = this;
-	var xhr;
-	xhr = new XMLHttpRequest();
-	xhr.onreadystatechange = function() {
-		if(xhr.status == status) {
-			e.passed();
-		}
-	};
-	xhr.open("GET",url,true);
-}
-PJsUnit.addEvent("xhrStatus",fun);
-
-function Test_Class() {
+function ClassTest() {
 	var send;
-	this.set_up = function() {
-		xhr = new XMLHttpRequest();
+	this.setUp = function() {
 		console.log("Set Up");
 	}
-	this.tear_down = function() {
+	this.tearDown = function() {
 		console.log("Tear Down");
 	}
-	this.method_test = function() {
-		PJsUnit.xhrStatus("file:///home/frej/linux/WEBSCR/index.html",0);
+	this.methodTest = function() {
+		PJsUnit.xhrStatusEquals('file:///home/frej/linux/WEBSCR/index.html', 0);
+		PJsUnit.assertTrue(false);
+	}
+	this.Test = function() {
+		PJsUnit.xhrStatusEquals('http://www.google.com', 1);
 		PJsUnit.assertTrue(false);
 	}
 }
-function test_fun() {
+var objectTest = new ClassTest();
+var functionTest = function() {
 	PJsUnit.assertTrue(true);
-	PJsUnit.assertTrue(false);
-};
-var obj = new Test_Class();
-PJsUnit.addObject(obj);
-PJsUnit.addFunction	(test_fun);
-PJsUnit.test();
-console.log(PJsUnit.toString());
+}
 </script>

@@ -1,24 +1,107 @@
 <script type="text/javascript" src="PJsUnit.js"></script>
 <script type="text/javascript">
+var temp;
+// Function suffix
+temp = PJsUnit.functionSuffix();
+if (PJsUnit.functionSuffix("fun") != "fun") throw new "functionSuffix";
+if (PJsUnit.functionSuffix() !== "fun") throw new "functionSuffix";
+PJsUnit.functionSuffix(temp);
+// Object suffix
+temp = PJsUnit.objectSuffix();
+if (PJsUnit.objectSuffix("obj") !== "obj") throw new "functionSuffix";
+if (PJsUnit.objectSuffix() !== "obj") throw new "functionSuffix";
+PJsUnit.objectSuffix(temp);
+// Method suffix
+temp = PJsUnit.methodSuffix();
+if (PJsUnit.methodSuffix("met") !== "met") throw new "methodSuffix";
+if (PJsUnit.methodSuffix() !== "met") throw new "methodSuffix";
+PJsUnit.methodSuffix(temp);
+// Set up name
+temp = PJsUnit.setUpName();
+if (PJsUnit.setUpName("sun") !== "sun") throw new "setUpName";
+if (PJsUnit.setUpName() !== "sun") throw new "setUpName";
+PJsUnit.setUpName(temp);
+// Tear down name
+temp = PJsUnit.tearDownName();
+if (PJsUnit.tearDownName("tdn") !== "tdn") throw new "tearDownName";
+if (PJsUnit.tearDownName() !== "tdn") throw new "tearDownName";
+PJsUnit.tearDownName(temp);
+// Error toString
+var fun = function() {
+	return " ERROR</br>";
+}
+PJsUnit.errorToString(fun);
+// function toString
+var fun = function() {
+	var str = this.name + " FUNCTION</br>";
+	this.errors.map(function(error) {
+		str += error;
+	});
+	return str;
+}
+PJsUnit.functionToString(fun);
+// object toString
+var fun = function() {
+	var str = this.name + " OBJECT</br>";
+	this.methods.map(function(method) {
+		str += method;
+	});
+	return str;
+}
+PJsUnit.objectToString(fun);
+// method toString
+var fun = function() {
+	var str = this.name + " METHOD</br>";
+	this.errors.map(function(error) {
+		str += error;
+	});
+	return str;
+}
+PJsUnit.methodToString(fun);
+// Add assertion
+fun = function(a,b) {return a === b;};
+PJsUnit.addAssertion('assertEquals', fun);
+if (typeof PJsUnit.assertEquals !== 'function') throw new "addAssertion";
+// Add event
+fun = function() {
+	var e = this;
+	document.onload = function() {
+		e.passed();
+	}
+};
+PJsUnit.addEvent('assertOnLoad', fun);
+if (typeof PJsUnit.assertOnLoad !== 'function') throw new "addAssertion";
+// Add object
+PJsUnit.addObject({});
 function ClassTest() {
 	var send;
 	this.setUp = function() {
-		console.log("Set Up");
+		//set up
 	}
 	this.tearDown = function() {
-		console.log("Tear Down");
+		// tear down
 	}
-	this.methodTest = function() {
-		PJsUnit.xhrStatusEquals('file:///home/frej/linux/WEBSCR/index.html', 0);
-		PJsUnit.assertTrue(false);
+	// should pass
+	this.assertEqualsTest = function() {
+		PJsUnit.assertEquals(5, 5);
+		PJsUnit.assertEquals("foo", "foo");
 	}
-	this.Test = function() {
-		PJsUnit.xhrStatusEquals('http://www.google.com', 1);
-		PJsUnit.assertTrue(false);
+	// Should pass
+	this.assertOnLoadTest = function() {
+		PJsUnit.assertOnLoad();
 	}
 }
 var objectTest = new ClassTest();
-var functionTest = function() {
-	PJsUnit.assertTrue(true);
+// Add function
+var assertEqualsTest = function() {
+	PJsUnit.assertEquals("bar", "bar");
+	PJsUnit.assertEquals(PJsUnit, PJsUnit);
 }
+// will fail
+var failTest = function() {
+	PJsUnit.assertEquals({}, {});
+}
+// Write fun
+PJsUnit.writeFun(document.write,document);
+
 </script>

@@ -5,7 +5,7 @@
  * 
  * PHP version 5
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -17,7 +17,7 @@
  * so reaching data should be used by accessing the static methods for this class.
  * The class will automatically echo the results from the test to standard out.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -35,11 +35,11 @@ class PJsUnit
     private static $_objects = array();
     private static $_currentObject = null;
     private static $_functionSuffix = "_test";
-    private static $_classSuffix = "_test";
-    private static $_methodSuffix = "_test";
+    private static $_classSuffix = "Test";
+    private static $_methodSuffix = "Test";
     private static $_designPrefix = "console";
-    private static $_setUpName = "set_up";
-    private static $_tearDownName = "tear_down";
+    private static $_setUpName = "setUp";
+    private static $_tearDownName = "tearDown";
     private static $_time = 0;
     private static $_assertionMethods = array();
     private static $_instanceCount = 0;
@@ -85,7 +85,7 @@ class PJsUnit
                     - strlen(PJsUnit::$_functionSuffix)
                 ) == PJsUnit::$_functionSuffix
                 ) {
-                    PJsUnit::addFunction("\\".$function);
+                    PJsUnit::addFunction($function);
                 } 
             }
             foreach (get_declared_classes() as $class) {
@@ -105,7 +105,7 @@ class PJsUnit
      * Returns a textual representation of the objects, classes, methods and 
      * functions under test. Depending on the design prefix different 
      * representation may occur. The files that are loaded and returned will be 
-     * located in the "php/design/" folder. Files starting with the design 
+     * located in the "src/design/" folder. Files starting with the design 
      * prefix will be the files that are called.
      * 
      * @return string The object converted to a string.
@@ -119,7 +119,7 @@ class PJsUnit
      * Returns a textual representation of the objects, classes, methods and 
      * functions under test. Depending on the design prefix different 
      * representation may occur. The files that are loaded and returned will be 
-     * located in the "php/design/" folder. Files starting with the design 
+     * located in the "src/design/" folder. Files starting with the design 
      * prefix will be the files that are called.
      * 
      * @return string The object converted to a string.
@@ -149,7 +149,7 @@ class PJsUnit
                           + count(PJsUnit::$_objects) 
                           + count(PJsUnit::$_classes);
         $dir = dirname(__FILE__);
-        $path=$dir."/php/design/".$prefix.'_'.__CLASS__.".php";
+        $path=$dir."/src/design/".$prefix.'_'.__CLASS__.".php";
         return PJsUnit\includeExtract($path, $array);
     }
     /**
@@ -369,7 +369,7 @@ class PJsUnit
      * Potentially changes the value of the prefix of the files that contain the 
      * design code for displaying objects, classes, methods and function under test.
      * 
-     * @param string $prefix The prefix of the php files in the php/design 
+     * @param string $prefix The prefix of the php files in the src/design 
      *                       folder should have to be called by the objects 
      *                       containing classes, objects, methods and functions 
      *                       under test.
@@ -547,17 +547,18 @@ class PJsUnit
      * Adds a function that is to become a function under test which will be tested 
      * by the test engine.
      * 
-     * @param string  $name     The function name of the function that is to become 
-     *                          the function under test and tested by the test 
-     *                          engine.
+     * @param string  $name    The function name of the function that is to become 
+     *                         the function under test and tested by the test 
+     *                         engine.
      * 
-     * @param boolean $run_test true if the function under test should be executed  
-     *                          by the test engine, else false.
+     * @param boolean $runTest true if the function under test should be executed  
+     *                         by the test engine, else false.
      * 
      * @return PJsUnit\TestFunction The object containing the function under test.
      */
-    private static function _addFunction($name, $run_test = true)
+    private static function _addFunction($name, $runTest = true)
     {
+        $name = strtolower($name);
         if (function_exists($name)) {
             foreach (PJsUnit::$_functions as $function) {
                 if ($function->name == $name) {
@@ -566,7 +567,7 @@ class PJsUnit
             }
             $reflection = new \ReflectionFunction($name);
             if ($reflection->getNumberOfRequiredParameters() == 0) {
-                $function = new PJsUnit\TestFunction($name, $run_test);
+                $function = new PJsUnit\TestFunction($name, $runTest);
                 PJsUnit::$_functions[] = $function;
                 return $function;    
             }
@@ -595,12 +596,12 @@ class PJsUnit
      * @param string  $class_name The class name of the class that is to become the 
      *                            class under test and tested by the test engine.
      * 
-     * @param boolean $run_test   true if the methods that are to be tested by the 
+     * @param boolean $runTest    true if the methods that are to be tested by the 
      *                            class under test should be executed, else false.
      * 
      * @return PJsUnit\TestClass The object containing the class under test.
      */
-    private static function _addClass($class_name, $run_test = true)
+    private static function _addClass($class_name, $runTest = true)
     {
         if (class_exists($class_name)) {
             foreach (PJsUnit::$_classes as $class) {
@@ -608,7 +609,7 @@ class PJsUnit
                     return $class;
                 }
             }
-            $class = new PJsUnit\TestClass($class_name, $run_test);
+            $class = new PJsUnit\TestClass($class_name, $runTest);
             PJsUnit::$_classes[] = $class;
             return $class;
         }
@@ -632,15 +633,15 @@ class PJsUnit
      * Adds an object that is to become an object under test which will be tested 
      * by the test engine.
      * 
-     * @param Object  $object   The object that is to become the object under test 
-     *                          and tested by the test engine.
+     * @param Object  $object  The object that is to become the object under test 
+     *                         and tested by the test engine.
      * 
-     * @param boolean $run_test true if the methods that are to be tested by the 
-     *                          object under test should be executed, else false.
+     * @param boolean $runTest true if the methods that are to be tested by the 
+     *                         object under test should be executed, else false.
      * 
      * @return PJsUnit\TestObject The object that contains the object under test.
      */
-    static function _addObject($object, $run_test = true)
+    static function _addObject($object, $runTest = true)
     {
         if (is_object($object)) {
             foreach (PJsUnit::$_objects as $obj) {
@@ -701,7 +702,7 @@ class PJsUnit
         } else {
             $caller = $error->caller;
             $test_instance = PJsUnit::_addFunction($caller);
-            $test_instance->run_test = false;
+            $test_instance->runTest = false;
         }
         return $test_instance->addError($error, true);
     }
@@ -719,21 +720,19 @@ class PJsUnit
         $debug_backtrace = debug_backtrace();
         if (isset($debug_backtrace[$i+1])) {
             $caller = $debug_backtrace[$i+1];
-            if ((PJsUnit::$_currentObject == null 
-                && PJsUnit::$_currentFunction == null) 
-                || (PJsUnit::$_currentObject != null 
-                && isset($caller["class"]) 
-                && $caller["class"] != PJsUnit::$_currentObject->class) 
-                || (PJsUnit::$_currentFunction != null
-                && $caller["function"] != PJsUnit::$_currentFunction->name)
-            ) {
-                
-                if (isset($caller['class'])) {
+            if (isset($caller["class"])) {
+                if (PJsUnit::$_currentObject == null 
+                    || $caller["class"] != PJsUnit::$_currentObject->class)
+                {
                     $class = PJsUnit::_addClass($caller['class'], false);
                     $class->addMethod($caller['function'], false);
-                } else {
+                }
+            } else {
+                if (PJsUnit::$_currentFunction != null
+                    || $caller["function"] != PJsUnit::$_currentFunction->name)
+                {
                     $function = PJsUnit::_addFunction($caller['function']);
-                    $function->run_test = false;
+                    $function->runTest = false;
                 }
             }
         }
@@ -776,15 +775,15 @@ class PJsUnit
         PJsUnit::_currentAddError($error);
     }
 }
-if (file_exists(dirname(__FILE__)."/php/TestInstance.php")) {
-    include dirname(__FILE__)."/php/TestInstance.php";
-} elseif (file_exists(dirname(__FILE__)."\php\TestInstance.php")) {
-    include dirname(__FILE__)."\php\TestInstance.php";
+if (file_exists(dirname(__FILE__)."/src/TestInstance.php")) {
+    include dirname(__FILE__)."/src/TestInstance.php";
+} elseif (file_exists(dirname(__FILE__)."\src\TestInstance.php")) {
+    include dirname(__FILE__)."\src\TestInstance.php";
 }
-if (file_exists(dirname(__FILE__)."/php/assertion_methods.php")) {
-    include dirname(__FILE__)."/php/assertion_methods.php";
-} elseif (file_exists(dirname(__FILE__)."\php\assertion_methods.php")) {
-    include dirname(__FILE__)."\php\assertion_methods.php";
+if (file_exists(dirname(__FILE__)."/src/assertion_methods.php")) {
+    include dirname(__FILE__)."/src/assertion_methods.php";
+} elseif (file_exists(dirname(__FILE__)."\src\assertion_methods.php")) {
+    include dirname(__FILE__)."\src\assertion_methods.php";
 }
 $PJsUnit = new PJsUnit();
 ?>

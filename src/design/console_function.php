@@ -9,6 +9,7 @@ $name			The function name
 $time			The time it took to run the function.
 */
 $string = "  ".$type.": ".$name."()";
+	var_dump($passed);
 	if($passed) {
 		$string.= " PASSED";
 		if($time > 0) {

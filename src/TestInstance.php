@@ -5,7 +5,7 @@
  * 
  * PHP version 5
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -51,7 +51,7 @@ function includeExtract($path, array $array = array())
  * is an error that occured while unit testing an object, class, 
  * method or function under test.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -123,7 +123,7 @@ class Error
         foreach ($this->_arguments as $arg) {
             $array["arguments"][] = print_r($arg, true);
         }
-        $array["passed"] = $this->_passed;
+        $array["passed"] = $this->passed;
         $array["caller"] = $this->caller;
         $array['string'] = "";
         $type = strtolower(stripslashes(str_replace(__NAMESPACE__, '', __CLASS__)));
@@ -150,7 +150,7 @@ class Error
  * Skeleton code conatining methods and parameters for objects that are to conatin 
  * objects, classes, methods and functions under test.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -162,7 +162,7 @@ abstract class TestInstance
     protected $passed = true;
     protected $time = null;
     protected $type;
-    protected $run_test = true;
+    protected $runTest = true;
 
     /**
      * Returns a textual representation of the object. Depending on the static 
@@ -177,7 +177,7 @@ abstract class TestInstance
     function __toString()
     {
         $prefix = \PJsUnit::designPrefix();
-        $array['passed'] = $this->_passed;
+        $array['passed'] = $this->passed;
         $array['errors'] = array();
         foreach ($this->errors as $e) {
             $array['errors'][] = (string) $e;
@@ -210,7 +210,7 @@ abstract class TestInstance
         }
     }
     /**
-     * Magic method __set. Sets either the $run_test property or the $passed property
+     * Magic method __set. Sets either the $runTest property or the $passed property
      * 	
      * @param string  $name  the property name of the property that is to be set.
      * 
@@ -224,9 +224,9 @@ abstract class TestInstance
         if (is_bool($value)) {
             switch($name) {
             case "passed":
-                $this->_passed = $value;
+                $this->passed = $value;
                 return true;
-            case "run_test":
+            case "runTest":
                 $this->runTest = $value;
                 return true;
             }
@@ -237,7 +237,7 @@ abstract class TestInstance
      * Runs the function. If the function dosn't pass it's assertions errors will 
      * be added to the function.
      * 
-     * @param boolean $run_test true if the object, class, method or function under 
+     * @param boolean $runTest true if the object, class, method or function under 
      *                          test should be executed.
      * 
      * @return boolean          returns the $passed property. True indicates that 
@@ -245,14 +245,14 @@ abstract class TestInstance
      *                          indicates that there were errors when executing the 
      *                          test.
      */
-    function test($run_test = true)
+    function test($runTest = true)
     {
         $start = microtime(true);
-        if ($this->runTest && $run_test) {
+        if ($this->runTest && $runTest) {
             call_user_func_array($this->name, []);
         }
         $this->time = microtime(true) - $start;
-        return $this->_passed;
+        return $this->passed;
     }
     /**
      * Skeleton code for the addError method. This method should add an error to 
@@ -277,7 +277,7 @@ abstract class TestInstance
  * Class that represents an object under test. An object under test is any object 
  * not created by the the test engine but is to be tested.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -298,27 +298,27 @@ class TestObject extends TestInstance
      * hold an object that is to be tested. The object that is to be hold is 
      * reffered to as the object under test.
      *  
-     * @param Object $test_object the object that is to be tested. The object that 
+     * @param Object $testObject the object that is to be tested. The object that 
      *                            is to be the object under test.
      * 
      * @param string $object_name the name of the object that is to be tested.
      * 
      * @return void
      */
-    function __construct($test_object, $object_name = null)
+    function __construct($testObject, $object_name = null)
     {
-        if (!is_object($test_object)) {
-            throw new \Exception("Input parameter \$test_object is not an object");
+        if (!is_object($testObject)) {
+            throw new \Exception("Input parameter \$testObject is not an object");
         }
-        $this->object = $test_object;
-        $this->class = get_class($test_object);
+        $this->object = $testObject;
+        $this->class = get_class($testObject);
         if ($object_name != null && is_string($object_name)) {
             $this->name = $object_name;
         } else {
             $this->name = $this->class;
         }
         $methodSuffix = \PJsUnit::methodSuffix();
-        $methods = get_class_methods($test_object);
+        $methods = get_class_methods($testObject);
         $temp_methods = array();
         foreach ($methods as $method) {
             foreach ($this->methods as $m) {
@@ -330,7 +330,7 @@ class TestObject extends TestInstance
             if (substr($method, -strlen($methodSuffix)) == $methodSuffix
                 && $reflectionMethod->getNumberOfRequiredParameters() == 0
             ) {
-                $test_method = new TestMethod($test_object, $method);
+                $test_method = new TestMethod($testObject, $method);
                 $temp_methods[] = $test_method;
             }
         }
@@ -340,7 +340,7 @@ class TestObject extends TestInstance
     }
     /**
      * Magic method __set. Tries to change the value of the property with name 
-     * $name to $value. If the parameter that is to changed is run_test the 
+     * $name to $value. If the parameter that is to changed is runTest the 
      * parameter of all methods under test in the methods proporty array will be 
      * changed as well.
      * 	
@@ -353,7 +353,7 @@ class TestObject extends TestInstance
      */
     function __set($name, $value)
     {
-        if ($name == "run_test") {
+        if ($name == "runTest") {
             if (is_bool($value)) {
                 $this->runTest = $value;
                 foreach ($this->methods as $m) {
@@ -376,7 +376,7 @@ class TestObject extends TestInstance
     function __toString()
     {
         $prefix = \PJsUnit::designPrefix();
-        $array['passed'] = $this->_passed;
+        $array['passed'] = $this->passed;
         $array['methods'] = array();
         foreach ($this->methods as $m) {
             $array['methods'][] = (string) $m;
@@ -397,20 +397,19 @@ class TestObject extends TestInstance
      * under test must contain a method with the name $method which requires no 
      * parameters.
      * 
-     * @param string  $method   The name of the method that is to be added to the 
-     *                          object under test.
+     * @param string  $method  The name of the method that is to be added to the 
+     *                         object under test.
      * 
-     * @param boolean $run_test true if the method should be executed when it is 
-     *                          tested by the test engine.
+     * @param boolean $runTest true if the method should be executed when it is 
+     *                         tested by the test engine.
      * 
-     * @return boolean          true if the method was added successfully, else 
-     *                          false.
+     * @return boolean true if the method was added successfully, else false.
      */
-    function addMethod($method, $run_test = true)
+    function addMethod($method, $runTest = true)
     {
         if ($this->object == null || method_exists($this->object, $method)) {
             $method = new TestMethod($this->object, $method);
-            $method->run_test = $run_test;
+            $method->runTest = $runTest;
             $this->methods[] = $method;
             return true;
         }
@@ -444,7 +443,7 @@ class TestObject extends TestInstance
                 }
             }
             if ($failed) {
-                $this->_passed = false;
+                $this->passed = false;
             }
             if (isset($method)) {
                 return $method->addError($error, $failed);
@@ -464,19 +463,19 @@ class TestObject extends TestInstance
      * the iteration. The parameter passed_count will be updated with the number of 
      * methods under test that passed.
      * 
-     * @param boolean $run_test true if the methods under test contained in the 
-     *                          elements in the methods proporty should be 
-     *                          executed, else false.
+     * @param boolean $runTest true if the methods under test contained in the 
+     *                         elements in the methods proporty should be 
+     *                         executed, else false.
      * 
-     * @return boolean          true if the passed property of every element in
-     *                          the methods array parameter is true. Else false.
+     * @return boolean         true if the passed property of every element in
+     *                         the methods array parameter is true. Else false.
      */
-    function test($run_test=true)
+    function test($runTest=true)
     {
         $time = microtime(true);
         $set_up_name = \PJsUnit::setUpName();
         $tear_down_name = \PJsUnit::tearDownName();
-        if ($this->runTest && $run_test
+        if ($this->runTest && $runTest
             && method_exists($this->object, $set_up_name)
         ) {
             $reflection_method = new \ReflectionMethod($this->name, $set_up_name);
@@ -486,11 +485,11 @@ class TestObject extends TestInstance
         }
         foreach ($this->methods as $method) {
             $this->current_method = $method;
-            if ($method->test($run_test)) {
+            if ($method->test($runTest)) {
                 $this->passed_count++;
             }
         }
-        if ($this->runTest && $run_test
+        if ($this->runTest && $runTest
             && method_exists($this->object, $tear_down_name)
         ) {
             $reflection_method = new \ReflectionMethod($this->name, $tear_down_name);
@@ -499,7 +498,7 @@ class TestObject extends TestInstance
             }
         }
         $this->time = microtime(true) - $time;
-        return $this->_passed;
+        return $this->passed;
     }
     /**
      * Matches the pointer of the current object with the pointer of the parameter 
@@ -521,7 +520,7 @@ class TestObject extends TestInstance
  * created by the test engine, under test. The class must contain a constructor 
  * that doesn't require any parameters.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -534,18 +533,18 @@ class TestClass extends TestObject
      *  Creates an object that holds a class under test.
      * 	
      * @param string  $class_name the name of the class that is to be tested.
-     * @param boolean $run_test   true if the methods under test that this class 
+     * @param boolean $runTest    true if the methods under test that this class 
      *                            contains should be executed when the class under 
      *                            test is tested, else false.
      * 
      * @return
      */
-    function __construct($class_name, $run_test = true)
+    function __construct($class_name, $runTest = true)
     {
         if (class_exists(!$class_name)) {
             throw new \Exception("The class '$class_name' does not exist.");
         }
-        if ($run_test === true) {
+        if ($runTest === true) {
             if (method_exists($this->name, "__construct")) {
                 $construct = new \ReflectionMethod($this->name, "__construct");
                 if ($construct->getNumberOfRequiredParameters() != 0) {
@@ -566,7 +565,7 @@ class TestClass extends TestObject
  * Class that represents a function under test. A function under test is a 
  * predefined function that is to be tested by the test engine.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -617,7 +616,7 @@ class TestFunction extends TestInstance
             if ($error->caller == $name) {
                 $this->errors[] = $error;
                 if ($failed) {
-                    $this->_passed = false;
+                    $this->passed = false;
                 }
                 return true;
             } else {
@@ -640,7 +639,7 @@ class TestFunction extends TestInstance
  * is to be tested by the test engine and where the method is a defined method of 
  * either an object under test or a class under test.
  * 
- * @category Unit_Testing
+ * @category Unit Testing
  * @package  PJsUnit
  * @author   Frej Knutar <frej.knutar@gmail.com>
  * @license  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -648,29 +647,29 @@ class TestFunction extends TestInstance
  */
 class TestMethod extends TestFunction
 {
-    private $_test_object = null;
+    private $_testObject = null;
     /**
      * Creates an object that holds a method under test. The method must either be 
      * contained by the object parameter.
      * 
-     * @param Object $test_object the object that holds the method that is to 
-     *                            become the method under test.
+     * @param Object $testObject the object that holds the method that is to 
+     *                           become the method under test.
      * 
-     * @param string $method      The name of the method that is to become the 
-     *                            method under test.
+     * @param string $method     The name of the method that is to become the 
+     *                           method under test.
      * 
      * @return
      */
-    function __construct($test_object, $method)
+    function __construct($testObject, $method)
     {
-        if ($test_object == null || method_exists($test_object, $method)) {
+        if ($testObject == null || method_exists($testObject, $method)) {
             $this->name = $method;
-            $this->_test_object = $test_object;
+            $this->_testObject = $testObject;
             $this->type = "Method";
         } else {
             throw new \Exception(
                 "Trying to create test interface for undefined method '"
-                .get_class($test_object)."->$method'"
+                .get_class($testObject)."->$method'"
             );
         }
     }
@@ -678,20 +677,20 @@ class TestMethod extends TestFunction
      * Tests the method under test and adds error that occured in the method under 
      * test to the errors array proporty.
      * 
-     * @param boolean $run_test true if the method under test shall be executed, 
-     *                          else false.
+     * @param boolean $runTest true if the method under test shall be executed, 
+     *                         else false.
      * 
      * @return value of the $passed proporty.
      */
-    function test($run_test = true)
+    function test($runTest = true)
     {
-        if ($this->runTest && $run_test) {
+        if ($this->runTest && $runTest) {
             $method = $this->name;
             $start = microtime(true);
-            $this->_test_object->$method();
+            $this->_testObject->$method();
             $this->time = microtime(true) - $start;
         }
-        return $this->_passed;
+        return $this->passed;
     }
 }
 ?>

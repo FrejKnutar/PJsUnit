@@ -26,6 +26,7 @@ if (typeof PJsUnit === 'undefined') {
                     return print;
                 }
             }()),
+            _writeFunObj = null;
             /*
              * If possible, returns the class name of the object. If there isn't 
              * one "[Anonymous]" is returned.
@@ -1255,7 +1256,7 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
             },
-            writeFun = function (fun) {
+            writeFun = function (fun, obj) {
                 if (typeof fun === 'undefined') {
                     throw new UndefinedParameterException('fun', 1);
                 }
@@ -1266,6 +1267,7 @@ if (typeof PJsUnit === 'undefined') {
                     );
                 } else {
                     _writeFun = fun;
+                    _writeFunObj = obj;
                 }
                 if (fun === null) {
                     throw new NullPointerException();
@@ -1291,7 +1293,7 @@ if (typeof PJsUnit === 'undefined') {
                         }
                     }
                     PJsUnit.test();
-                    _writeFun.apply(null, [PJsUnit.toString()]);
+                    _writeFun.apply(_writeFunObj, [PJsUnit.toString()]);
                 }
             if (typeof window.addEventListener !== 'undefined') {
                 window.addEventListener('load', onDocumentLoad, false);
@@ -1305,6 +1307,10 @@ if (typeof PJsUnit === 'undefined') {
             methodSuffix: methodSuffix,
             setUpName: setUpName,
             tearDownName: tearDownName,
+            errorToString: errorToString,
+            functionToString: functionToString,
+            objectToString: objectToString,
+            methodToString: methodToString,
             addAssertion: addAssertion,
             addEvent: addEvent,
             addObject: addObject,
@@ -1316,14 +1322,14 @@ if (typeof PJsUnit === 'undefined') {
     })();
     PJsUnit.addAssertion(
         'assertTrue',
-        function (a, b) {
-            return a === b;
+        function (a) {
+            return a === true;
         }
     );
     PJsUnit.addAssertion(
         'assertFalse',
-        function (a, b) {
-            return a !== b;
+        function (a) {
+            return a === false;
         }
     );
     if (typeof window !== 'undefined') {

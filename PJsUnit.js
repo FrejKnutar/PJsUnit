@@ -1031,7 +1031,7 @@ if (typeof PJsUnit === 'undefined') {
                         passed = fun.apply(null, arguments);
                     if (typeof assertFun.caller !== 'undefined'
                         && typeof assertFun.caller.name === 'string'
-                        && assertFun.caller.name !== '')
+                        && assertFun.caller.name.lenth > 0)
                     {
                         if (typeof _currentFunction !== null
                             && _currentFunction.name() === assertFun.caller.name)
@@ -1098,7 +1098,7 @@ if (typeof PJsUnit === 'undefined') {
                             eventListener;
                         if (typeof eventFun.caller !== 'undefined'
                             && typeof eventFun.caller.name === 'string'
-                            && typeof eventFun.caller.name !== '')
+                            && typeof eventFun.caller.name.length > 0)
                         {
                             if (_currentFunction !== null &&
                                 _currentFunction.name() === eventFun.caller.name)

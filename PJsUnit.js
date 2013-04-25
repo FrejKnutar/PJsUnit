@@ -1031,7 +1031,7 @@ if (typeof PJsUnit === 'undefined') {
                         passed = fun.apply(null, arguments);
                     if (typeof assertFun.caller !== 'undefined'
                         && typeof assertFun.caller.name === 'string'
-                        && assertFun.caller.name.lenth > 0)
+                        && assertFun.caller.name.length > 0)
                     {
                         if (typeof _currentFunction !== null
                             && _currentFunction.name() === assertFun.caller.name)

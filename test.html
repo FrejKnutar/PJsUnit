@@ -1,0 +1,81 @@
+<script type="text/javascript" src="PJsUnit.js"></script>
+<script type="text/javascript">
+PJsUnit.writeFun(document.write, document);
+// Adding an assertion that checks the type of the parameter
+PJsUnit.addAssertion(
+  'assertEquals',
+	function(variable1, variable2) {
+		return typeof variable1 === variable2;
+	}
+);
+// Adding an event assertion to be passed after an amount of time
+// Updating the 
+PJsUnit.addEvent(
+	'assertOnTimeOut',
+	function(timeout) {
+		var e = this;
+			window.setTimeout(
+				function() {
+					e.passed();
+					// Prints the new results
+					document.write(PJsUnit.toString());
+				},
+				timeout
+		);
+	}
+);
+// Object that is to be tested
+var ObjTest = function() {
+	var setUp = function() { // Set up/ build up method
+		document.write('Obj.setUp</br>');
+	},
+	 // tear down method
+		tearDown = function() {
+		document.write('Obj.tearDown</br>');
+	},
+	 // Method that is supposed to pass
+		methodPassTest = function() {
+		document.write('Obj.methodTest</br>');
+		PJsUnit.assertEquals(true, true);
+	},
+	 // Method that is not supposed to be called by the library
+		nonTestingMethod = function() {
+		throw new "Reached method that is not to be tested";
+	},
+	 // Method that is supposed to fail
+		methodFailTest = function() {
+		document.write('Obj.methodTest</br>');
+		PJsUnit.assertEquals(true, false);
+	};
+	// Return object
+	return {
+		tearDown: tearDown,
+		methodPassTest: methodPassTest,
+		methodFailTest: methodFailTest,
+		nonTestingMethod: nonTestingMethod,
+		setUp: setUp
+	};
+}();
+// Function that is supposed to pass
+var functionPassTest = function() {
+	PJsUnit.assertEquals(true, true)
+};
+// Function that is supposed to fail
+var functionFailTest = function() {
+	PJsUnit.assertEquals(false, true)
+};
+// Function that is supposed to test the timeout assertion
+var functionEventTest = function() {
+	PJsUnit.assertOnTimeOut(100);
+};
+// Testing of an anonymous function
+PJsUnit.addFunction(
+	function() {
+		PJsUnit.assertTrue(true);
+	}
+);
+// Function that is not to be tested
+var functionNotToBeTested = function() {
+	throw new "Reached function that is not to be tested";
+}
+</script>

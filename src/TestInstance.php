@@ -339,6 +339,20 @@ class TestObject extends TestInstance
         }
     }
     /**
+     * Magic method __get. Returns the value of proporty with proporty name $name 
+     * if that proporty exists.
+     *  
+     * @param string $name the property name of the property that is to be returned.
+     * 
+     * @return mixed       Returns the value of property $name if it exists.
+     */
+    function __get($name)
+    {
+        if (property_exists(__CLASS__, $name)) {
+            return $this->$name;
+        }
+    }
+    /**
      * Magic method __set. Tries to change the value of the property with name 
      * $name to $value. If the parameter that is to changed is runTest the 
      * parameter of all methods under test in the methods proporty array will be 

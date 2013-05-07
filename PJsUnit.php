@@ -684,9 +684,13 @@ class PJsUnit
     private static function _currentAddError($error)
     {
         if (PJsUnit::$_currentObject != null 
-            && $error->class == PJsUnit::$_currentObject->name
+            && $error->class == PJsUnit::$_currentObject->class
         ) {
             return PJsUnit::$_currentObject->addError($error, true);
+        } elseif (PJsUnit::$_currentClass != null
+            && $error->class == PJsUnit::$_currentClass->class)
+        {
+            return PJsUnit::$_currentClass->addError($error, true);
         } elseif (PJsUnit::$_currentFunction != null) {
             $name = PJsUnit::$_currentFunction->name;
             if ($name{0} == '\\') { 
@@ -721,8 +725,10 @@ class PJsUnit
         if (isset($debug_backtrace[$i+1])) {
             $caller = $debug_backtrace[$i+1];
             if (isset($caller["class"])) {
-                if (PJsUnit::$_currentObject == null 
-                    || $caller["class"] != PJsUnit::$_currentObject->class)
+                if ((PJsUnit::$_currentObject != null 
+                    && $caller["class"] != PJsUnit::$_currentObject->class)
+                    || (PJsUnit::$_currentClass != null 
+                    && $caller["class"] != PJsUnit::$_currentClass->class))
                 {
                     $class = PJsUnit::_addClass($caller['class'], false);
                     $class->addMethod($caller['function'], false);

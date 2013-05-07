@@ -65,9 +65,10 @@ if (typeof PJsUnit.assertEquals !== 'function') throw new "addAssertion";
 // Add event
 fun = function() {
 	var e = this;
-	document.onload = function() {
+	document.onclick = function() {
+		console.log("hello");
 		e.passed();
-	}
+	};
 };
 PJsUnit.addEvent('assertOnLoad', fun);
 if (typeof PJsUnit.assertOnLoad !== 'function') throw new "addAssertion";

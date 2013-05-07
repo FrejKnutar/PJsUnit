@@ -43,7 +43,7 @@ class PJsUnit
     private static $_time = 0;
     private static $_assertionMethods = array();
     private static $_instanceCount = 0;
-    private static $_iniFile = "PJsUnit/PJsUnit.ini";
+    private static $_iniFile = "src/PJsUnit.ini";
     /**
      * Unused constructor. The implementation of the test engine requires no 
      * additional objects of this class to be created.
@@ -461,7 +461,7 @@ class PJsUnit
             $function_str = "function";
             foreach ($sections as $sec => $tuple) {
                 $sec = strtolower($sec);
-                $generic = $sec == "PJsUnit";
+                $generic = strtolower($sec) == "pjsunit";
                 foreach ($tuple as $method => $value) {
                     switch(strtolower($method)) {
                     case "suffix":

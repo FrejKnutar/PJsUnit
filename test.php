@@ -29,8 +29,9 @@ class Obj {
 		PJsUnit::assertTrue(false);
 	}
 }
-function function_test() {
+function functionTest_test() {
 	PJsUnit::assertTrue(true);
+	PJsUnit::assertTrue(false);
 }
 PJsUnit::addAssertion("assertString", function($string) {return is_string($string);});
 ?>

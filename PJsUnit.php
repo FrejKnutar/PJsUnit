@@ -461,7 +461,7 @@ class PJsUnit
             $function_str = "function";
             foreach ($sections as $sec => $tuple) {
                 $sec = strtolower($sec);
-                $generic = strtolower($sec) == "pjsunit";
+                $generic = $sec == "pjsunit";
                 foreach ($tuple as $method => $value) {
                     switch(strtolower($method)) {
                     case "suffix":
@@ -696,7 +696,8 @@ class PJsUnit
             if ($name{0} == '\\') { 
                 $name = substr($name, 1);
             }
-            if ($error->caller == $name) {
+            if (strtolower($error->caller) == strtolower($name)) {
+                PJsUnit::$_currentFunction->name = $error->caller;
                 return PJsUnit::$_currentFunction->addError($error, true);
             }
         }
@@ -733,13 +734,14 @@ class PJsUnit
                     $class = PJsUnit::_addClass($caller['class'], false);
                     $class->addMethod($caller['function'], false);
                 }
+            } elseif (PJsUnit::$_currentFunction != null
+                && strtolower($caller["function"]) == strtolower(PJsUnit::$_currentFunction->name))
+            {
+                var_dump($caller["function"]);
+                PJsUnit::$_currentFunction->name = $caller["function"];
             } else {
-                if (PJsUnit::$_currentFunction != null
-                    || $caller["function"] != PJsUnit::$_currentFunction->name)
-                {
-                    $function = PJsUnit::_addFunction($caller['function']);
-                    $function->runTest = false;
-                }
+                $function = PJsUnit::_addFunction($caller['function']);
+                $function->runTest = false;
             }
         }
     }

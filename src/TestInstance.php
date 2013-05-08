@@ -206,6 +206,13 @@ abstract class TestInstance
     function __get($name)
     {
         if (property_exists(__CLASS__, $name)) {
+            if ($name == "name") {
+                if ($this->name{0} == '\\') {
+                    return substr($this->name, 1);
+                } else {
+                    return $this->name;
+                }
+            }
             return $this->$name;
         }
     }
@@ -608,6 +615,32 @@ class TestFunction extends TestInstance
         }
     }
     /**
+     * Magic method __set. Sets either the $runTest property or the $passed property
+     *  
+     * @param string  $name  the property name of the property that is to be set.
+     * 
+     * @param boolean $value the new value of the proporty.
+     * 
+     * @return boolean      true if the property with name $name was updated 
+     *                      successfully else false.
+     */
+    function __set($name, $value)
+    {
+        if ($name == "name") {
+            if (strtolower($value) == strtolower($this->name)) {
+                $this->name = $value;
+            } else {
+                throw new \Exception(
+                    "Trying to change the function name of defined function ".
+                    "\"$this->name\" to \"$value\""
+                );
+            }
+        } else {
+            return parent::__set($name, $value);
+        }
+        return false;
+    }
+    /**
      * Adds an error to the function under test. The error must have occured while 
      * the function under test was executed.
      * 
@@ -623,11 +656,17 @@ class TestFunction extends TestInstance
     {
         try {
             parent::addError($error);
-            $name = $this->name;
-            if ($name{0} == '\\') {
-                $name = substr($name, 1);
+            if ($this->name{0} == '\\') {
+                $name = substr($this->name, 1);
+            } else {
+                $name = $this->name;
             }
-            if ($error->caller == $name) {
+            if (strtolower($error->caller) == strtolower($name)) {
+                if ($this->name{0} == '\\') {
+                    $this->name = '\\'.$error->caller;
+                } else {
+                    $this->name = $error->caller;
+                }
                 $this->errors[] = $error;
                 if ($failed) {
                     $this->passed = false;

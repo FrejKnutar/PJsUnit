@@ -163,6 +163,9 @@ abstract class TestInstance
     protected $time = null;
     protected $type;
     protected $runTest = true;
+    static protected $needle = null;
+    static protected $suffix = true;
+    static protected $toString = null;
 
     /**
      * Returns a textual representation of the object. Depending on the static 
@@ -237,6 +240,17 @@ abstract class TestInstance
                 $this->runTest = $value;
                 return true;
             }
+        } elseif (is_string($value)) {
+            switch($name) {
+            case "prefix":
+                $this->needle = $value;
+                $this->suffix = false;
+                return $this->needle == $value;
+            case "suffix":
+                $this->needle = $value;
+                $this->suffix = true;
+                return $this->needle == $value;
+            }
         }
         return false;
     }
@@ -262,6 +276,27 @@ abstract class TestInstance
         return $this->passed;
     }
     /**
+     * Changes the toString method that represent instances of the class as Strings
+     * to the input function.
+     * 
+     * @param boolean $fun The function that is to be the toString ethod of the 
+     *                     class
+     * 
+     * @return boolean     returns true if the function was changed successully, 
+     *                     else false.
+     */
+    static function toString($fun) {
+        if (((is_string($fun) 
+            && function_exists($fun)) 
+            || (is_object($fun) 
+            && ($fun instanceof Closure)))
+        ) {
+            $this->toString = $fun;
+            return true;
+        }
+        return false;
+    }
+    /**
      * Skeleton code for the addError method. This method should add an error to 
      * the object, class, method or function under test.
      * 
@@ -279,9 +314,31 @@ abstract class TestInstance
     {
         return false;
     }
+    static function prefix($value = null) {
+        if ($value != null
+            && is_string($value)) {
+            self::$needle = $value;
+            self::$suffix = false;
+        }
+        if (!self::$suffix) {
+            return self::$needle;
+        }
+        return false;
+    }
+    static function suffix($value = null) {
+        if ($value != null
+            && is_string($value)) {
+            self::$needle = $value;
+            self::$suffix = true;
+        }
+        if (self::$suffix) {
+            return self::$needle;
+        }
+        return false;
+    }
 }
 /**
- * Class that represents an object under test. An object under test is any object 
+ * Class that represents an protected $toString = null;object under test. An object under test is any object 
  * not created by the the test engine but is to be tested.
  * 
  * @category Unit Testing
@@ -295,55 +352,74 @@ class TestObject extends TestInstance
     protected $type = "Object";
     protected $class = null;
     protected $object = null;
-    protected $passed_count = 0;
+    protected $passedCount = 0;
     protected $methods = array();
-    protected $current_method = null;
-    protected $was_timed = false;
+    protected $currentMethod = null;
+    protected $wasTimed = false;
+    static protected $setUpName = "";
+    protected $setUp = null;
+    static protected $tearDownName = "";
+    protected $tearDown = null;
 
     /**
-     *  Creates an instance of the class that is to 
+     *  Creates set_up_namean instance of the class that is to 
      * hold an object that is to be tested. The object that is to be hold is 
      * reffered to as the object under test.
      *  
      * @param Object $testObject the object that is to be tested. The object that 
      *                            is to be the object under test.
      * 
-     * @param string $object_name the name of the object that is to be tested.
+     * @param string $objectName the name of the object that is to be tested.
      * 
      * @return void
      */
-    function __construct($testObject, $object_name = null)
+    function __construct($testObject, $objectName = null)
     {
         if (!is_object($testObject)) {
             throw new \Exception("Input parameter \$testObject is not an object");
         }
         $this->object = $testObject;
         $this->class = get_class($testObject);
-        if ($object_name != null && is_string($object_name)) {
-            $this->name = $object_name;
+        if ($objectName != null && is_string($objectName)) {
+            $this->name = $objectName;
         } else {
             $this->name = $this->class;
         }
-        $methodSuffix = \PJsUnit::methodSuffix();
         $methods = get_class_methods($testObject);
-        $temp_methods = array();
+        $tempMethods = array();
+        $needle = TestMethod::suffix();
+        if ($needle == false) {
+            $needle = TestMethod::prefix();
+            $suffix = false;
+        } else {
+            $suffix = true;
+        }
         foreach ($methods as $method) {
             foreach ($this->methods as $m) {
                 if ($m->name == $method) {
                     break(2);
                 }
             }
-            $reflectionMethod = new \ReflectionMethod($this->name, $method);
-            if (substr($method, -strlen($methodSuffix)) == $methodSuffix
-                && $reflectionMethod->getNumberOfRequiredParameters() == 0
-            ) {
-                $test_method = new TestMethod($testObject, $method);
-                $temp_methods[] = $test_method;
+            $reflectionMethod = new \ReflectionMethod($this->object, $method);
+            if ($reflectionMethod->getNumberOfRequiredParameters() == 0) {
+                if ($method == $this->setUpName) {
+                    $this->setUp = $method;
+                } elseif ($method == $this->tearDownName) {
+                    $this->tearDown = $method;
+                } elseif ($suffix) {
+                    if (substr($method, -strlen($needle)) == $needle) {
+                        $testMethod = new TestMethod($testObject, $method);
+                        $tempMethods[] = $testMethod;
+                    }
+                } else {
+                    if (substr($method, 0, strlen($needle)) == $needle) {
+                        $testMethod = new TestMethod($testObject, $method);
+                        $tempMethods[] = $testMethod;
+                    }
+                }
             }
         }
-        foreach ($temp_methods as $m) {
-            $this->methods[] = $m;
-        }
+        $this->methods = $tempMethods;
     }
     /**
      * Magic method __get. Returns the value of proporty with proporty name $name 
@@ -356,7 +432,19 @@ class TestObject extends TestInstance
     function __get($name)
     {
         if (property_exists(__CLASS__, $name)) {
-            return $this->$name;
+            $ReflectionClass = new \ReflectionClass(__CLASS__);
+            $property = $ReflectionClass->getProperty($name);
+            if ($property->isStatic()) {
+                return $this::$$name;
+            } elseif ($name == "name") {
+                if ($this->name{0} == '\\') {
+                    return substr($this->name, 1);
+                } else {
+                    return $this->name;
+                }
+            } else {
+                return $this->$name;
+            }
         }
     }
     /**
@@ -374,16 +462,20 @@ class TestObject extends TestInstance
      */
     function __set($name, $value)
     {
-        if ($name == "runTest") {
-            if (is_bool($value)) {
-                $this->runTest = $value;
-                foreach ($this->methods as $m) {
-                    $m->$name = $value;
+        if (property_exists(__CLASS__, $name)) {
+            if ($name == "runTest") {
+                if (is_bool($value)) {
+                    $this->runTest = $value;
+                    foreach ($this->methods as $m) {
+                        $m->$name = $value;
+                    }
+                    return true;
                 }
-                return true;
+            } else {
+                return parent::__set($name, $value);
             }
         } else {
-            parent::__set($name, $value);
+            return parent::__set($name, $value);
         }
         return false;
     }
@@ -405,8 +497,8 @@ class TestObject extends TestInstance
         $array['type'] = $this->type;
         $array['name'] = $this->name;
         $array['time'] = $this->time;
-        $array['passed_count'] = $this->passed_count;
-        $array['failed_count'] = count($this->methods) - $this->passed_count;
+        $array['passedCount'] = $this->passedCount;
+        $array['failedCount'] = count($this->methods) - $this->passedCount;
         $array['string'] = "";
         $type = strtolower($this->type);
         $dir = dirname(__FILE__);
@@ -451,10 +543,10 @@ class TestObject extends TestInstance
     function addError(Error $error, $failed=true)
     {
         try {
-            if ($this->current_method != null
-                && $error->caller == $this->current_method->name
+            if ($this->currentMethod != null
+                && $error->caller == $this->currentMethod->name
             ) {
-                $method = $this->current_method;
+                $method = $this->currentMethod;
             } else {
                 foreach ($this->methods as $m) {
                     if ($m->name ==  $error->caller) {
@@ -481,7 +573,7 @@ class TestObject extends TestInstance
      * which name is equal to the proporty set_up_name of PJsUnit it will be called 
      * before the iteration. If the object under test contain a method which name 
      * is equal to the proporty tear_down_name of PJsUnit it will be called after 
-     * the iteration. The parameter passed_count will be updated with the number of 
+     * the iteration. The parameter passedCount will be updated with the number of 
      * methods under test that passed.
      * 
      * @param boolean $runTest true if the methods under test contained in the 
@@ -494,29 +586,17 @@ class TestObject extends TestInstance
     function test($runTest=true)
     {
         $time = microtime(true);
-        $set_up_name = \PJsUnit::setUpName();
-        $tear_down_name = \PJsUnit::tearDownName();
-        if ($this->runTest && $runTest
-            && method_exists($this->object, $set_up_name)
-        ) {
-            $reflection_method = new \ReflectionMethod($this->name, $set_up_name);
-            if ($reflection_method->getNumberOfRequiredParameters() == 0) {
-                $this->object->$set_up_name();
-            }
+        if ($this->runTest && $runTest && $this->setUp != null) {
+            call_user_func_array(array($this->object, $this->setUp), array());
         }
         foreach ($this->methods as $method) {
-            $this->current_method = $method;
+            $this->currentMethod = $method;
             if ($method->test($runTest)) {
-                $this->passed_count++;
+                $this->passedCount++;
             }
         }
-        if ($this->runTest && $runTest
-            && method_exists($this->object, $tear_down_name)
-        ) {
-            $reflection_method = new \ReflectionMethod($this->name, $tear_down_name);
-            if ($reflection_method->getNumberOfRequiredParameters() == 0) {
-                $this->object->$tear_down_name();
-            }
+        if ($this->runTest && $runTest && $this->tearDown != null) {
+            call_user_func_array(array($this->object, $this->tearDown), array());
         }
         $this->time = microtime(true) - $time;
         return $this->passed;
@@ -534,6 +614,18 @@ class TestObject extends TestInstance
     public function objEquals($obj)
     {
         return $obj === $this->object;
+    }
+    static function setUpName($name = null) {
+        if ($name != null
+            && is_string($name)) {
+            self::$setUpName = $name;
+        }
+    }
+    static function tearDownName($name = null) {
+        if ($name != null
+            && is_string($name)) {
+            self::$tearDownName = $name;
+        }
     }
 }
 /**
@@ -553,32 +645,32 @@ class TestClass extends TestObject
     /**
      *  Creates an object that holds a class under test.
      * 	
-     * @param string  $class_name the name of the class that is to be tested.
+     * @param string  $className the name of the class that is to be tested.
      * @param boolean $runTest    true if the methods under test that this class 
      *                            contains should be executed when the class under 
      *                            test is tested, else false.
      * 
      * @return
      */
-    function __construct($class_name, $runTest = true)
+    function __construct($className, $runTest = true)
     {
-        if (class_exists(!$class_name)) {
-            throw new \Exception("The class '$class_name' does not exist.");
+        if (class_exists(!$className)) {
+            throw new \Exception("The class '$className' does not exist.");
         }
         if ($runTest === true) {
             if (method_exists($this->name, "__construct")) {
                 $construct = new \ReflectionMethod($this->name, "__construct");
                 if ($construct->getNumberOfRequiredParameters() != 0) {
                     throw new \Exception(
-                        "The constructor of class '$class_name' requires parameters."
+                        "The constructor of class '$className' requires parameters."
                     );
                 }
             }
-            $object = new $class_name();
+            $object = new $className();
             parent::__construct($object);
         } else {
-            $this->class = $class_name;
-            $this->name = $class_name;
+            $this->class = $className;
+            $this->name = $className;
         }
     }
 }

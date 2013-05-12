@@ -34,12 +34,7 @@ class PJsUnit
     private static $_currentClass = null;
     private static $_objects = array();
     private static $_currentObject = null;
-    private static $_functionSuffix = "_test";
-    private static $_classSuffix = "Test";
-    private static $_methodSuffix = "Test";
     private static $_designPrefix = "console";
-    private static $_setUpName = "setUp";
-    private static $_tearDownName = "tearDown";
     private static $_time = 0;
     private static $_assertionMethods = array();
     private static $_instanceCount = 0;
@@ -54,16 +49,16 @@ class PJsUnit
      */
     function __construct()
     {
-        if (PJsUnit::$_instanceCount == 0) {
-            if (file_exists(dirname(__FILE__).'/'.PJsUnit::$_iniFile)) {
-                PJsUnit::parseIniFile(dirname(__FILE__).'/'.PJsUnit::$_iniFile);
+        if (self::$_instanceCount == 0) {
+            if (file_exists(dirname(__FILE__).'/'.self::$_iniFile)) {
+                self::parseIniFile(dirname(__FILE__).'/'.self::$_iniFile);
             }
         } else {
             throw new Exception(
                 "Trying to create another instance of PJsUnit."
             );
         }
-        PJsUnit::$_instanceCount++;
+        self::$_instanceCount++;
     }
     /**
      * Iterates over all defined classes and functions and adds the ones that has 
@@ -76,29 +71,48 @@ class PJsUnit
      */
     function __destruct()
     {
-        PJsUnit::$_instanceCount--;
-        if (PJsUnit::$_instanceCount == 0) {
+        self::$_instanceCount--;
+        if (self::$_instanceCount == 0) {
             $functions = get_defined_functions();
+            $needle = PJsUnit\TestFunction::suffix();
+            if ($needle == false) {
+                $needle = PJsUnit\TestFunction::prefix();
+                $suffix = false;
+            } else {
+                $suffix = true;
+            }
             foreach ($functions['user'] as $function) {
-                if (substr(
-                    $function, 
-                    - strlen(PJsUnit::$_functionSuffix)
-                ) == PJsUnit::$_functionSuffix
+                if ($suffix 
+                    && substr($function, -strlen($needle)) == $needle
                 ) {
-                    PJsUnit::addFunction($function);
-                } 
+                    self::addFunction($function);
+                } elseif (!$suffix
+                    && substr($function, 0, strlen($needle)) == $needle
+                ) {
+                    self::addFunction($function);
+                }
             }
+            $needle = PJsUnit\TestClass::suffix();
+            if ($needle == false) {
+                $needle = PJsUnit\TestClass::prefix();
+                $suffix = false;
+            } else {
+                $suffix = true;
+            }
+            var_dump($suffix);
             foreach (get_declared_classes() as $class) {
-                if (substr(
-                    $class, 
-                    - strlen(PJsUnit::$_classSuffix)
-                ) == PJsUnit::$_classSuffix
+                if ($suffix
+                    && substr($class, -strlen($needle)) == $needle
                 ) {
-                    PJsUnit::addClass($class);
+                    self::addClass($class);
+                } elseif (!$suffix
+                    && substr($class, 0, strlen($needle)) == $needle
+                ) {
+                    self::addClass($class);
                 } 
             }
-            PJsUnit::_test();
-            echo PJsUnit::_toString();
+            self::_test();
+            echo self::_toString();
         }
     }
     /**
@@ -108,12 +122,12 @@ class PJsUnit
      * located in the "src/design/" folder. Files starting with the design 
      * prefix will be the files that are called.
      * 
-     * @return string The object converted to a string.
+     * @return String The object converted to a String.
      *                
      */
     public function __toString()
     {
-        return PJsUnit::_toString();
+        return self::_toString();
     }
     /**
      * Returns a textual representation of the objects, classes, methods and 
@@ -122,32 +136,32 @@ class PJsUnit
      * located in the "src/design/" folder. Files starting with the design 
      * prefix will be the files that are called.
      * 
-     * @return string The object converted to a string.
+     * @return String The object converted to a String.
      *                
      */
     private static function _toString()
     {
-        $prefix = PJsUnit::designPrefix();
-        $array['passed'] = PJsUnit::$_passed;
+        $prefix = self::designPrefix();
+        $array['passed'] = self::$_passed;
         $array['functions'] = array();
-        foreach (PJsUnit::$_functions as $f) {
-            $array['functions'][] = (string) $f;
+        foreach (self::$_functions as $f) {
+            $array['functions'][] = (String) $f;
         }
         $array['classes'] = array();
-        foreach (PJsUnit::$_classes as $c) {
-            $array['classes'][] = (string) $c;
+        foreach (self::$_classes as $c) {
+            $array['classes'][] = (String) $c;
         }
         $array['objects'] = array();
-        foreach (PJsUnit::$_objects as $o) {
-            $array['objects'][] = (string) $o;
+        foreach (self::$_objects as $o) {
+            $array['objects'][] = (String) $o;
         }
-        $array['time'] = PJsUnit::$_time;
-        $array['string'] = "";
-        $array['passed_count'] = PJsUnit::$_passedCount;
-        $array['failed_count'] = PJsUnit::$_failedCount;
-        $array['tests'] = count(PJsUnit::$_functions) 
-                          + count(PJsUnit::$_objects) 
-                          + count(PJsUnit::$_classes);
+        $array['time'] = self::$_time;
+        $array['String'] = "";
+        $array['passed_count'] = self::$_passedCount;
+        $array['failed_count'] = self::$_failedCount;
+        $array['tests'] = count(self::$_functions) 
+                          + count(self::$_objects) 
+                          + count(self::$_classes);
         $dir = dirname(__FILE__);
         $path=$dir."/src/design/".$prefix.'_'.__CLASS__.".php";
         return PJsUnit\includeExtract($path, $array);
@@ -157,7 +171,7 @@ class PJsUnit
      * name with the parameter value as input parameter for the corresponding 
      * method.
      * 
-     * @param string $name  The name of the get method that is to be called.
+     * @param String $name  The name of the get method that is to be called.
      * @param mixed  $value The input for the method that is to be called.
      * 
      * @return mixed the return value of the get method that was called.
@@ -169,7 +183,7 @@ class PJsUnit
         ) {
             $refl = new ReflectionMethod(__CLASS__, $name);
             if ($refl->isPublic()) {
-                return PJsUnit::$name($value);
+                return self::$name($value);
             } else {
                 throw new Exception(
                     "Access to undeclared static property ".__CLASS__."::$name."
@@ -184,7 +198,7 @@ class PJsUnit
     /**
      * Magic __get method. Calls the corresponding get method for the parameter name.
      * 
-     * @param string $name The name of the get method that is to be called.
+     * @param String $name The name of the get method that is to be called.
      * 
      * @return mixed the return value of the get method that was called.
      */
@@ -195,7 +209,7 @@ class PJsUnit
         ) {
             $refl = new ReflectionMethod(__CLASS__, $name);
             if ($refl->isPublic() && $refl->isStatic()) {
-                return PJsUnit::$name();
+                return self::$name();
             } else {
                 throw new Exception(
                     "Access to undeclared static property ".__CLASS__."::$name."
@@ -212,7 +226,7 @@ class PJsUnit
      * engine or calls an existing assertion function from the test engine 
      * depending on the argument parameter.
      * 
-     * @param string $name      The name of the assertion method that should be 
+     * @param String $name      The name of the assertion method that should be 
      *                          added to or called by the test engine.
      * 
      * @param Array  $arguments Depending on the array different functionality will 
@@ -230,22 +244,22 @@ class PJsUnit
      */
     static function __callStatic($name, $arguments)
     {
-        if (isset(PJsUnit::$_assertionMethods[$name])) {
-            $reflection = new ReflectionFunction(PJsUnit::$_assertionMethods[$name]);
+        if (isset(self::$_assertionMethods[$name])) {
+            $reflection = new ReflectionFunction(self::$_assertionMethods[$name]);
             if ($reflection->getNumberOfParameters() == count($arguments) -1) {
                 $message = $arguments[count($arguments)-1];
                 array_splice($arguments, count($arguments)-1, 1);
             }
             $bool = call_user_func_array(
-                PJsUnit::$_assertionMethods[$name], 
+                self::$_assertionMethods[$name], 
                 $arguments
             );
             if (is_bool($bool) && $bool) {
-                PJsUnit::_assertionPassed();
+                self::_assertionPassed();
             } elseif (isset($message)) {
-                PJsUnit::assertion_failed($message);
+                self::assertion_failed($message);
             } else {
-                PJsUnit::_assertionFailed();
+                self::_assertionFailed();
             }
             return $bool;
         } else {
@@ -257,12 +271,12 @@ class PJsUnit
     /**
      * Adds an assertion function to the test engine. If the function was added 
      * sucessfully The method can be reached statically by calling: 
-     * "PJsUnit::$name($arg1, $arg2, ..., $argn, $errorMessage);" The function that 
+     * "self::$name($arg1, $arg2, ..., $argn, $errorMessage);" The function that 
      * is added should return a boolean value. True indicates that the assertion 
      * passed while false indicates that the assertion failed. Errors will be added 
      * automatically if assertions fails.
      * 
-     * @param string $name The name that the assertion function.
+     * @param String $name The name that the assertion function.
      * @param mixed  $fun  The assertion function. The return type of the 
      *                     function should be boolean.
      * 
@@ -276,179 +290,263 @@ class PJsUnit
             || (is_object($fun) 
             && ($fun instanceof Closure)))
         ) {
-            if (isset(PJsUnit::$_assertionMethods[$name])) {
+            if (isset(self::$_assertionMethods[$name])) {
                 return false;
             } else {
-                PJsUnit::$_assertionMethods[$name] = $fun;
-                return isset(PJsUnit::$_assertionMethods[$name])
-                       && PJsUnit::$_assertionMethods[$name] == $fun;
+                self::$_assertionMethods[$name] = $fun;
+                return isset(self::$_assertionMethods[$name])
+                       && self::$_assertionMethods[$name] == $fun;
             }
         }
     }
     /**
-     * Potentially changes the suffix string that is required of function names to 
+     * Potentially changes the prefix String that is required of function names to 
      * be added automatically to the test engine; making them functions under test.
      * 
-     * @param string $suffix The new suffix of that function names must end with 
+     * @param String $prefix The new prefix of that function names must start with 
+     *                       for them to be added and tested automatically by the 
+     *                       test engine. If the parameter value is null the prefix
+     *                       will not change.
+     * 
+     * @return String The prefix for functions that will be added automatically to 
+     *                the test engine.
+     */
+    static function functionPrefix($prefix = null)
+    {
+        if ($prefix != null) {
+            if (is_string($prefix)) {
+                PJsUnit\TestFunction::prefix($prefix);
+            } else {
+                throw new \Exception(
+                    __CLASS__."::".__METHOD__.
+                    " takes a String as argument, ".gettype($prefix)." was given."
+                );
+            }
+        }
+        return PJsUnit\TestFunction::prefix();
+    }
+    /**
+     * Potentially changes the suffix String that is required of function names to 
+     * be added automatically to the test engine; making them functions under test.
+     * 
+     * @param String $suffix The new suffix of that function names must end with 
      *                       for them to be added and tested automatically by the 
      *                       test engine. If the parameter value is null the 
      *                       function name will not change.
      * 
-     * @return string The suffix for functions that will be added automatically to 
+     * @return String The suffix for functions that will be added automatically to 
      *                the test engine.
      */
     static function functionSuffix($suffix = null)
     {
         if ($suffix != null) {
             if (is_string($suffix)) {
-                PJsUnit::$_functionSuffix = $suffix;
+                PJsUnit\TestFunction::Suffix($suffix);
             } else {
                 throw new \Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($suffix)." was given."
+                    " takes a String as argument, ".gettype($suffix)." was given."
                 );
             }
         }
-        return PJsUnit::$_functionSuffix;
-    }    
+        return PJsUnit\TestFunction::Suffix($suffix);;
+    }
     /**
-     * Potentially changes the suffix string that is required of class names to be 
+     * Potentially changes the prefix String that is required of class names to be 
      * added automatically to the test engine; making them classes under test.
      * 
-     * @param string $suffix The new suffix of that class names must end with for 
+     * @param String $prefix The new prefix of that class names start end with for 
+     *                       them to be added and tested automatically by the test 
+     *                       engine. If the parameter value is null the sufix will 
+     *                       not change.
+     * 
+     * @return String The prefix for classes that will be added automatically to 
+     *                the test engine.
+     */
+    static function classPrefix($prefix = null)
+    {
+        if ($prefix != null) {
+            if (is_string($prefix)) {
+                PJsUnit\TestClass::prefix($prefix);
+            } else {
+                throw new \Exception(
+                    __CLASS__."::".__METHOD__.
+                    " takes a String as argument, ".gettype($prefix)." was given."
+                );
+            }
+        }
+        return PJsUnit\TestClass::suffix($prefix);
+    }
+    /**
+     * Potentially changes the suffix String that is required of class names to be 
+     * added automatically to the test engine; making them classes under test.
+     * 
+     * @param String $suffix The new suffix of that class names must end with for 
      *                       them to be added and tested automatically by the test 
      *                       engine. If the parameter value is null the class name 
      *                       will not change.
      * 
-     * @return string The suffix for classes that will be added automatically to 
+     * @return String The suffix for classes that will be added automatically to 
      *                the test engine.
      */
     static function classSuffix($suffix = null)
     {
         if ($suffix != null) {
             if (is_string($suffix)) {
-                PJsUnit::$_classSuffix = $suffix;
+                PJsUnit\TestClass::suffix($suffix);
             } else {
                 throw new \Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($suffix)." was given."
+                    " takes a String as argument, ".gettype($suffix)." was given."
                 );
             }
         }
-        return PJsUnit::$_classSuffix;
+        return PJsUnit\TestClass::suffix($suffix);
     }
     /**
-     * Potentially changes the suffix string that is required of method names to be 
+     * Potentially changes the prefix String that is required of method names to be 
      * added automatically to the test engine for objects and classes under test; 
      * making them methods under test.
      * 
-     * @param string $suffix The new suffix of that method names for objects and 
+     * @param String $prefix The new prefix of that method names for objects and 
+     *                       classes under test must end with for them to be added 
+     *                       and tested automatically by the test engine. If the 
+     *                       parameter value is null the method prefix will not
+     *                       change.
+     * 
+     * @return String The prefix for methods that will be added automatically to 
+     *                the test engine.
+     */
+    static function methodPrefix($prefix = null)
+    {
+        if ($prefix != null) {
+            if (is_string($prefix)) {
+                PJsUnit\TestClass::prefix($prefix);
+                PJsUnit\TestObject::prefix($prefix);
+            } else {
+                throw new \Exception(
+                    __CLASS__."::".__METHOD__.
+                    " takes a String as argument, ".gettype($prefix)." was given."
+                );
+            }
+        }
+        return PJsUnit\TestClass::prefix();
+    }
+    /**
+     * Potentially changes the suffix String that is required of method names to be 
+     * added automatically to the test engine for objects and classes under test; 
+     * making them methods under test.
+     * 
+     * @param String $suffix The new suffix of that method names for objects and 
      *                       classes under test must end with for them to be added 
      *                       and tested automatically by the test engine. If the 
      *                       parameter value is null the method name will not 
      *                       change.
      * 
-     * @return string The suffix for methods that will be added automatically to 
+     * @return String The suffix for methods that will be added automatically to 
      *                the test engine.
      */
     static function methodSuffix($suffix = null)
     {
         if ($suffix != null) {
             if (is_string($suffix)) {
-                PJsUnit::$_methodSuffix = $suffix;
+                PJsUnit\TestClass::suffix($suffix);
+                PJsUnit\TestObject::suffix($suffix);
             } else {
                 throw new \Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($suffix)." was given."
+                    " takes a String as argument, ".gettype($suffix)." was given."
                 );
             }
         }
-        return PJsUnit::$_methodSuffix;
+        return PJsUnit\TestClass::suffix();
     }
     /**
      * Potentially changes the value of the prefix of the files that contain the 
      * design code for displaying objects, classes, methods and function under test.
      * 
-     * @param string $prefix The prefix of the php files in the src/design 
+     * @param String $prefix The prefix of the php files in the src/design 
      *                       folder should have to be called by the objects 
      *                       containing classes, objects, methods and functions 
      *                       under test.
      * 
-     * @return string The design prefix.
+     * @return String The design prefix.
      */
     static function designPrefix($prefix = null)
     {
         if ($prefix != null) {
-            if (gettype($prefix) == "string") {
-                PJsUnit::$_designPrefix = $prefix;
+            if (gettype($prefix) == "String") {
+                self::$_designPrefix = $prefix;
             } else {
                 throw new Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($prefix)." was given."
+                    " takes a String as argument, ".gettype($prefix)." was given."
                 );
             }
         }
-        return PJsUnit::$_designPrefix;
+        return self::$_designPrefix;
     }
     /**
      * Potentially changes the method name that should be called automatically by 
      * the objects containing classes and objects under test before calling all the 
      * methods of the object or class under test that are to be tested.
      * 
-     * @param string $name The new name of the build up methods that are to be 
+     * @param String $name The new name of the set-up methods that are to be 
      *                     called automatically by the objects containing classes 
      *                     and objects under test. If the parameter value is null 
      *                     the method name will not change.
      * 
-     * @return string The build up method name.
+     * @return String The set-up method name.
      */
     static function setUpName($name = null)
     {
         if ($name != null) {
-            if (gettype($name) == "string") {
-                PJsUnit::$_setUpName = $name;
+            if (is_string($name)) {
+                PJsUnit\TestClass::setUpName($name);
+                PJsUnit\TestObject::setUpName($name);
             } else {
                 throw new Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($name)." was given."
+                    " takes a String as argument, ".gettype($name)." was given."
                 );
             }
         }
-        return PJsUnit::$_setUpName;    
+        return PJsUnit\TestClass::setUpName($name);
     }
     /**
      * Potentially changes the method name that should be called automatically by 
      * the objects containing classes and objects under test after calling all the 
      * methods of the object or class under test that are to be tested.
      * 
-     * @param string $name The new name of the tear down method that are to be 
+     * @param String $name The new name of the tear down method that are to be 
      *                     called automatically by the objects containing objects  
      *                     and classes under test. If the parameter value is null 
      *                     the method name will not change.
      * 
-     * @return string The tear down method name.
+     * @return String The tear down method name.
      */
     static function tearDownName($name = null)
     {
         if ($name != null) {
-            if (gettype($name) == "string") {
-                PJsUnit::$_tearDownName = $name;
+            if (is_string($name)) {
+                PJsUnit\TestClass::TearDownName($name);
+                PJsUnit\TestObject::TearDownName($name);
             } else {
                 throw new Exception(
                     __CLASS__."::".__METHOD__.
-                    " takes a string as argument, ".gettype($name)." was given."
+                    " takes a String as argument, ".gettype($name)." was given."
                 );
             }
         }
-        return PJsUnit::$_tearDownName;    
+        return PJsUnit\TestClass::TearDownName($name);
     }
     /**
      * Opens and parses the file at the location of the value of the parameter. 
-     * Potentially changes the value to the static proporties class_suffix, 
-     * method_suffix, function_suffix, design_prefix, build_up_name and 
-     * tear_down_name.
+     * Potentially changes the value to the prefixes and suffixes of functions 
+     * classes and methods and the set-up and tear-down method names of classes
+     * and objects
      * 
-     * @param string $file The location of the ini file.
+     * @param String $file The location of the ini file.
      * 
      * @return boolean true if all unit tests passed, else false.
      */
@@ -456,45 +554,53 @@ class PJsUnit
     {
         if (file_exists($file)) {
             $sections = parse_ini_file($file, true);
-            $class_str = "class";
-            $method_str = "method";
-            $function_str = "function";
+            $classStr = "class";
+            $methodStr = "method";
+            $functionStr = "function";
             foreach ($sections as $sec => $tuple) {
                 $sec = strtolower($sec);
                 $generic = $sec == "pjsunit";
                 foreach ($tuple as $method => $value) {
                     switch(strtolower($method)) {
-                    case "suffix":
-                        if ($generic || $sec == $class_str) {
-                            PJsUnit::classSuffix($value);
-                        }
-                        if ($generic || $sec == $method_str) {
-                            PJsUnit::methodSuffix($value);
-                        }
-                        if ($generic || $sec == $function_str) {
-                            PJsUnit::functionSuffix($value);
-                        }
-                        break;
                     case "prefix":
-                        if ($generic) {
-                            PJsUnit::designPrefix($value);
+                        if ($generic || $sec == $classStr) {
+                            self::classPrefix($value);
+                        }
+                        if ($generic || $sec == $methodStr) {
+                            self::methodPrefix($value);
+                        }
+                        if ($generic || $sec == $functionStr) {
+                            self::functionPrefix($value);
                         }
                         break;
-                    case "build_up_name":
-                        if ($sec != $function_str) {
-                            PJsUnit::build_up_name($value);
+                    case "suffix":
+                        if ($generic || $sec == $classStr) {
+                            self::classSuffix($value);
+                        }
+                        if ($generic || $sec == $methodStr) {
+                            self::methodSuffix($value);
+                        }
+                        if ($generic || $sec == $functionStr) {
+                            self::functionSuffix($value);
                         }
                         break;
-                    case "tear_down_name":
-                        if ($sec != $function_str) {
-                            PJsUnit::tearDownName($value);
+                    case "setup":
+                    case "setUpName":
+                        if ($sec != $functionStr) {
+                            self::setUpName($value);
+                        }
+                        break;
+                    case "teardown":
+                    case "tearDownName":
+                        if ($sec != $functionStr) {
+                            self::tearDownName($value);
                         }
                         break;
                     }
                 }
             }
         } else {
-            throw Exception("File \"$file\" not fount.");
+            throw Exception("INI File \"$file\" not fount.");
         }
     }
     /**
@@ -509,45 +615,45 @@ class PJsUnit
      */
     private static function _test()
     {
-        foreach (PJsUnit::$_classes as $class) {
-            PJsUnit::$_currentObject = $class;
+        foreach (self::$_classes as $class) {
+            self::$_currentObject = $class;
             if ($class->test()) {
-                PJsUnit::$_passedCount++;
+                self::$_passedCount++;
             } else {
-                PJsUnit::$_failedCount++;
-                PJsUnit::$_passed = false;
+                self::$_failedCount++;
+                self::$_passed = false;
             }
-            PJsUnit::$_time += $class->time;
+            self::$_time += $class->time;
         }
-        foreach (PJsUnit::$_objects as $object) {
-            PJsUnit::$_currentObject = $object;
+        foreach (self::$_objects as $object) {
+            self::$_currentObject = $object;
             if ($object->test()) {
-                PJsUnit::$_passedCount++;
+                self::$_passedCount++;
             } else {
-                PJsUnit::$_failedCount++;
-                PJsUnit::$_passed = false;
+                self::$_failedCount++;
+                self::$_passed = false;
             }
-            PJsUnit::$_time += $object->time;
+            self::$_time += $object->time;
         }
-        foreach (PJsUnit::$_functions as $function) {
-            PJsUnit::$_currentFunction = $function;
+        foreach (self::$_functions as $function) {
+            self::$_currentFunction = $function;
             if ($function->test()) {
-                PJsUnit::$_passedCount++;
+                self::$_passedCount++;
             } else {
-                PJsUnit::$_failedCount++;
-                PJsUnit::$_passed = false;
+                self::$_failedCount++;
+                self::$_passed = false;
             }
-            PJsUnit::$_time += $function->time;
+            self::$_time += $function->time;
         }
-        PJsUnit::$_currentObject = null;
-        PJsUnit::$_currentFunction = null;
-        return PJsUnit::$_passed;
+        self::$_currentObject = null;
+        self::$_currentFunction = null;
+        return self::$_passed;
     }
     /**
      * Adds a function that is to become a function under test which will be tested 
      * by the test engine.
      * 
-     * @param string  $name    The function name of the function that is to become 
+     * @param String  $name    The function name of the function that is to become 
      *                         the function under test and tested by the test 
      *                         engine.
      * 
@@ -560,7 +666,7 @@ class PJsUnit
     {
         $name = strtolower($name);
         if (function_exists($name)) {
-            foreach (PJsUnit::$_functions as $function) {
+            foreach (self::$_functions as $function) {
                 if ($function->name == $name) {
                     return $function;
                 }
@@ -568,7 +674,7 @@ class PJsUnit
             $reflection = new \ReflectionFunction($name);
             if ($reflection->getNumberOfRequiredParameters() == 0) {
                 $function = new PJsUnit\TestFunction($name, $runTest);
-                PJsUnit::$_functions[] = $function;
+                self::$_functions[] = $function;
                 return $function;    
             }
         }
@@ -578,7 +684,7 @@ class PJsUnit
      * Adds a function that is to become a function under test which will be tested 
      * by the test engine.
      * 
-     * @param string $name The function name of the function that is to become 
+     * @param String $name The function name of the function that is to become 
      *                     the function under test and tested by the test 
      *                     engine.
      * 
@@ -587,13 +693,13 @@ class PJsUnit
      */
     static function addFunction($name)
     {
-        return PJsUnit::_addFunction($name) !== false;
+        return self::_addFunction($name) !== false;
     }
     /**
      * Adds a class that is to become a class under test which will be tested by 
      * the test engine.
      * 
-     * @param string  $class_name The class name of the class that is to become the 
+     * @param String  $class_name The class name of the class that is to become the 
      *                            class under test and tested by the test engine.
      * 
      * @param boolean $runTest    true if the methods that are to be tested by the 
@@ -604,13 +710,13 @@ class PJsUnit
     private static function _addClass($class_name, $runTest = true)
     {
         if (class_exists($class_name)) {
-            foreach (PJsUnit::$_classes as $class) {
+            foreach (self::$_classes as $class) {
                 if ($class->name == $class_name) {
                     return $class;
                 }
             }
             $class = new PJsUnit\TestClass($class_name, $runTest);
-            PJsUnit::$_classes[] = $class;
+            self::$_classes[] = $class;
             return $class;
         }
         return null;
@@ -619,7 +725,7 @@ class PJsUnit
      * Adds a class that is to become a class under test which will be tested by 
      * the test engine.
      * 
-     * @param string $class_name The class name of the class that is to become the 
+     * @param String $class_name The class name of the class that is to become the 
      *                           class object under test and tested by the test 
      *                           engine.
      * 
@@ -627,7 +733,7 @@ class PJsUnit
      */
     static function addClass($class_name)
     {
-        return PJsUnit::_addClass($class_name) !== null;
+        return self::_addClass($class_name) !== null;
     }
     /**
      * Adds an object that is to become an object under test which will be tested 
@@ -644,13 +750,13 @@ class PJsUnit
     static function _addObject($object, $runTest = true)
     {
         if (is_object($object)) {
-            foreach (PJsUnit::$_objects as $obj) {
+            foreach (self::$_objects as $obj) {
                 if ($obj->objEquals($object)) {
                     return $obj;
                 }
             }
             $test_object = new PJsUnit\TestObject($object);
-            PJsUnit::$_objects[] = $test_object;
+            self::$_objects[] = $test_object;
             return $test_object;
         } else {
             return false;
@@ -667,7 +773,7 @@ class PJsUnit
      */
     static function addObject($object)
     {
-        return PJsUnit::_addObject($object) !== false;
+        return self::_addObject($object) !== false;
     }
     /**
      * Adds an error to the corresponding class, object or function under test 
@@ -683,30 +789,30 @@ class PJsUnit
      */
     private static function _currentAddError($error)
     {
-        if (PJsUnit::$_currentObject != null 
-            && $error->class == PJsUnit::$_currentObject->class
+        if (self::$_currentObject != null 
+            && $error->class == self::$_currentObject->class
         ) {
-            return PJsUnit::$_currentObject->addError($error, true);
-        } elseif (PJsUnit::$_currentClass != null
-            && $error->class == PJsUnit::$_currentClass->class)
+            return self::$_currentObject->addError($error, true);
+        } elseif (self::$_currentClass != null
+            && $error->class == self::$_currentClass->class)
         {
-            return PJsUnit::$_currentClass->addError($error, true);
-        } elseif (PJsUnit::$_currentFunction != null) {
-            $name = PJsUnit::$_currentFunction->name;
+            return self::$_currentClass->addError($error, true);
+        } elseif (self::$_currentFunction != null) {
+            $name = self::$_currentFunction->name;
             if ($name{0} == '\\') { 
                 $name = substr($name, 1);
             }
             if (strtolower($error->caller) == strtolower($name)) {
-                PJsUnit::$_currentFunction->name = $error->caller;
-                return PJsUnit::$_currentFunction->addError($error, true);
+                self::$_currentFunction->name = $error->caller;
+                return self::$_currentFunction->addError($error, true);
             }
         }
         if ($error->class != null) {
-            $test_instance = PJsUnit::_addClass($error->class, false);
+            $test_instance = self::_addClass($error->class, false);
             $test_instance->addMethod($error->caller, false);
         } else {
             $caller = $error->caller;
-            $test_instance = PJsUnit::_addFunction($caller);
+            $test_instance = self::_addFunction($caller);
             $test_instance->runTest = false;
         }
         return $test_instance->addError($error, true);
@@ -726,21 +832,21 @@ class PJsUnit
         if (isset($debug_backtrace[$i+1])) {
             $caller = $debug_backtrace[$i+1];
             if (isset($caller["class"])) {
-                if ((PJsUnit::$_currentObject != null 
-                    && $caller["class"] != PJsUnit::$_currentObject->class)
-                    || (PJsUnit::$_currentClass != null 
-                    && $caller["class"] != PJsUnit::$_currentClass->class))
+                if ((self::$_currentObject != null 
+                    && $caller["class"] != self::$_currentObject->class)
+                    || (self::$_currentClass != null 
+                    && $caller["class"] != self::$_currentClass->class))
                 {
-                    $class = PJsUnit::_addClass($caller['class'], false);
+                    $class = self::_addClass($caller['class'], false);
                     $class->addMethod($caller['function'], false);
                 }
-            } elseif (PJsUnit::$_currentFunction != null
-                && strtolower($caller["function"]) == strtolower(PJsUnit::$_currentFunction->name))
+            } elseif (self::$_currentFunction != null
+                && strtolower($caller["function"]) == strtolower(self::$_currentFunction->name))
             {
                 var_dump($caller["function"]);
-                PJsUnit::$_currentFunction->name = $caller["function"];
+                self::$_currentFunction->name = $caller["function"];
             } else {
-                $function = PJsUnit::_addFunction($caller['function']);
+                $function = self::_addFunction($caller['function']);
                 $function->runTest = false;
             }
         }
@@ -780,7 +886,7 @@ class PJsUnit
         }
         $error['passed']=false;
         $error = new PJsUnit\Error($error);
-        PJsUnit::_currentAddError($error);
+        self::_currentAddError($error);
     }
 }
 if (file_exists(dirname(__FILE__)."/src/TestInstance.php")) {

@@ -22,8 +22,8 @@ if($passed) {
 		$string .= $m;
 	}
 	$string .= "  Methods: ".count($methods).PHP_EOL;
-	$string .= "  Passed: $passed_count (".(count($methods)>0 ? ((string) ($passed_count/count($methods)*100).'%') : "NA").')'.PHP_EOL;
-	$string .= "  Failed: $failed_count (".(count($methods)>0 ? ((string) ($failed_count/count($methods)*100).'%') : "NA").')'.PHP_EOL;
+	$string .= "  Passed: $passedCount (".(count($methods)>0 ? ((string) ($passedCount/count($methods)*100).'%') : "NA").')'.PHP_EOL;
+	$string .= "  Failed: $failedCount (".(count($methods)>0 ? ((string) ($failedCount/count($methods)*100).'%') : "NA").')'.PHP_EOL;
 }
 return $string;
 ?>

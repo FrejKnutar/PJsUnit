@@ -270,7 +270,7 @@ abstract class TestInstance
     {
         $start = microtime(true);
         if ($this->runTest && $runTest) {
-            call_user_func_array($this->name, []);
+            call_user_func_array($this->name, array());
         }
         $this->time = microtime(true) - $start;
         return $this->passed;

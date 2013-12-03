@@ -9,6 +9,7 @@ if (typeof PJsUnit === 'undefined') {
         var _failedCount = 0,
             _passedCount = 0,
             _passed = true,
+            _globalErrors = [],
             _functions = [],
             _objects = [],
             _currentFunction = null,
@@ -154,6 +155,39 @@ if (typeof PJsUnit === 'undefined') {
                 }
                 return argarray[0];
             },
+            _globalErrorToString = function() {
+                var argarray = [null],
+                    argstr = '(',
+                    i;
+                if (this.args.length > 0) {
+                    for (i = 0; i < this.args.length; i++) {
+                        switch (typeof this.args[i]) {
+                        case 'object':
+                            argstr += '{' + typeof this.args[i] + '}';
+                            break;
+                        case 'array':
+                            argstr +=
+                                '[' + typeof this.args[i] +
+                                '(length: ' + this.args[i].length + ')]';
+                            break;
+                        case 'string':
+                            argstr += '"' + this.args[i] + '"';
+                            break;
+                        default:
+                            argstr += this.args[i];
+                        }
+                        if (i < (this.args.length - 1)) {
+                            argstr += ', ';
+                        }
+                    }
+                }
+                argstr += ')';
+                argarray[0] =
+                    'The Global assertion "' +
+                    this.assertion() + argstr +
+                    '" failed';
+                return argarray[0];
+            }
             /*
              * Class that represents a TestError. A TestError occurs when an 
              * assertion fails to pass and is added to the method under test 
@@ -229,6 +263,62 @@ if (typeof PJsUnit === 'undefined') {
                 return {
                     assertion: assertion(),
                     caller: caller(),
+                    args: args(),
+                    toString: toString
+                };
+            },
+            /*
+             * Class that represents a GlobalError. A GlobalError occurs when an 
+             * assertion fails that does not belong to an object nor a function. 
+             */
+            GlobalError = function (assertionName, parameterObject) {
+                if (typeof assertionName === 'undefined') {
+                    throw new UndefinedParameterException(
+                        'assertionName',
+                        1
+                    );
+                }
+                if (typeof assertionName !== 'string') {
+                    throw new IllegalParameterException(
+                        'string',
+                        typeof assertionName
+                    );
+                }
+                if (assertionName === null) {
+                    throw new NullPointerException();
+                }
+                if (typeof parameterObject !== 'undefined' && typeof parameterObject !== 'object') {
+                    throw new IllegalParameterException(
+                        'object',
+                        typeof parameterObject
+                    );
+                }
+                var _assertion = assertionName,
+                    _args = parameterObject,
+                    /*
+                     * Returns the name of the failed assertion.
+                     */
+                    assertion = function () {
+                        return _assertion;
+                    },
+                    /*
+                     * Returns the argument object of the of the assertion function 
+                     * where the error occured.
+                     */
+                    args = function () {
+                        return _args;
+                    },
+                    /*
+                     * Converts and returns the object as a String.
+                     */
+                    toString = function () {
+                        return _globalErrorToString.apply({
+                            assertion: assertion,
+                            args: args()
+                        });
+                    };
+                return {
+                    assertion: assertion(),
                     args: args(),
                     toString: toString
                 };
@@ -990,7 +1080,11 @@ if (typeof PJsUnit === 'undefined') {
                 if (this === null) {
                     return;
                 }
-                this.addError(new TestError(assertion, caller, args));
+                if (typeof this.addError === 'function') {
+                    this.addError(new TestError(assertion, caller, args));
+                } else {
+                    _globalErrors.push(new GlobalError(assertion, args));
+                }
             },
             /*
              * Adds an assertion function to the engine. The function can be 
@@ -1029,7 +1123,8 @@ if (typeof PJsUnit === 'undefined') {
                         current = null,
                         args = arguments,
                         passed = fun.apply(null, arguments);
-                    if (typeof assertFun.caller !== 'undefined'
+                    if (assertFun.caller !== null
+                        && typeof assertFun.caller !== 'undefined'
                         && typeof assertFun.caller.name === 'string'
                         && assertFun.caller.name.length > 0)
                     {
@@ -1048,7 +1143,7 @@ if (typeof PJsUnit === 'undefined') {
                         caller = _currentFunction.name();
                         current = _currentFunction;
                     } else {
-                        caller = _currentFunction.name();
+                        caller = '';
                     }
                     if (passed === true) {
                         _assertionPassed.apply(current, [name, caller, args]);
@@ -1174,6 +1269,9 @@ if (typeof PJsUnit === 'undefined') {
                 _functions.map(function (fun) {
                     str += fun.toString() + '\n';
                 });
+                _globalErrors.map(function (error) {
+                   str += error.toString() + '\n';
+                });
                 return str;
             },
             /*
@@ -1196,6 +1294,22 @@ if (typeof PJsUnit === 'undefined') {
                     throw new NullPointerException();
                 }
             },
+            globalErrorToString = function(fun) {
+                if (typeof fun === 'undefined') {
+                    throw new UndefinedParameterException('fun', 1);
+                }
+                if (typeof fun !== 'function') {
+                    throw new IllegalParameterException(
+                        'function',
+                        typeof fun
+                    );
+                } else {
+                    _globalErrorToString = fun;
+                }
+                if (fun === null) {
+                    throw new NullPointerException();
+                }
+            }
             /*
              * Changes the function that is used when converting a function under 
              * test to a String to the parameter function.

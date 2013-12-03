@@ -23,4 +23,4 @@ There is no need for class extending or setting up suits for testing code. The l
 	- There is no class that a test class needs to inherit from
 	- A test class is a class with a specific suffix (see Ease of Use) and those will be tested automatically
 	- set\_up/before and tear\_down/after methods will be called automatically as the first and last methods respectively.
-	- Methods named with a specific suffix (see Ease of Use) will be called in between the set\_up and tear\_down methods.
+	- Methods named with a specific suffix (see Ease of Use) will be called in between the setUp and tearDown methods.
